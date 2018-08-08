@@ -1,0 +1,228 @@
+
+
+// Modified by Heindal from the G-code interpreter created by Oliv4945 and posted on Thingiverse
+// Adds movement of the Z-axis (not interpolated - setup for lifting a pen), backlash compensation,
+// and the minimal servo replies to work with ReplicatorG to the
+// 2-D gcode interpreter Oliv4945 wrote
+#include <Servo.h>
+
+#define PIN_SERVO_X 9
+#define PIN_SERVO_Y 10
+#define PIN_SERVO_Z 11
+#define LINE_BUFFER_LENGTH 512
+#define MOVEMENT_MIN 15
+#define MOVEMENT_MAX 165 
+#define STEP_DELAY 20
+#define BACKLASH 1
+#define POSITIVE true
+#define NEGATIVE false
+
+/* Structures, global variables    */
+struct point {
+  int x;
+  boolean xDirection;
+  int y;
+  boolean yDirection;
+  int z;
+  boolean zDirection;
+};
+
+Servo servoX;
+Servo servoY;
+Servo servoZ;
+struct point actuatorPos;
+
+/**********************
+* void setup() - Initialisations
+***********************/
+void setup() {
+  Serial.begin( 38400 );
+  servoX.attach( PIN_SERVO_X );
+  servoY.attach( PIN_SERVO_Y );
+  servoZ.attach( PIN_SERVO_Z );
+  // Set default positions
+  servoX.write( 20 );
+  servoY.write( 160 );
+  servoZ.write( 45 );
+  actuatorPos.x = 20;
+  actuatorPos.xDirection = NEGATIVE;
+  actuatorPos.y = 160;
+  actuatorPos.yDirection = POSITIVE;
+  actuatorPos.z = 45;
+  actuatorPos.zDirection = NEGATIVE;
+  
+  Serial.println( "start" );
+  Serial.println( "// MiniCNC" );
+}
+
+/**********************
+* void loop() - Main loop
+***********************/
+void loop() {
+  char line[ LINE_BUFFER_LENGTH ];
+  char c; 
+  int lineIndex;
+  bool lineIsComment, lineIsSemiColon;
+  bool commandFound; // has a command been found 
+ 
+  lineIndex = 0;
+  lineIsSemiColon = false;
+  lineIsComment = false;
+  commandFound = false;
+ 
+ while (true) { 
+    // Serial reception - Mostly from Grbl, added semicolon support
+    while ( Serial.available()>0 ) {
+      c = Serial.peek();
+      if ( ( c == 'G' || c == 'M' ) && commandFound ) { // check if the next character starts a new command
+        c = '\n'; // insert a end of line character and skip reading the serial buffer to end the command  
+      }
+      else {
+        c = Serial.read();
+      }
+      switch (c) {
+        case '\n': // End of line reached
+        case '\r':                         
+          if ( lineIndex > 0 && commandFound ) {                        // Line or command is complete. Then execute!
+            line[ lineIndex ] = '\0';                   // Terminate string
+            Serial.print( "// Received "); Serial.println( line );
+            processIncomingLine( line, lineIndex );
+            lineIndex = 0;
+            commandFound = false; // reset the command found flag to false
+            lineIsComment = false;
+            lineIsSemiColon = false;
+          } else { 
+            // Empty or comment line. Skip block.
+          }
+          break;
+        case ';':
+          lineIsSemiColon = true;
+          break;
+        case '(':
+          lineIsComment = true;
+          break;
+        case ')':
+          lineIsComment = false;
+          break;
+        case ' ':  // Throw away whitepace and control characters
+        case '/':
+          break;
+        case 'G': 
+        case 'M':
+          commandFound = true;
+        default:
+          if ( (!lineIsComment) && (!lineIsSemiColon) ) {   // Only save if not comments
+            if ( c >= 'a' && c <= 'z' ) {        // Upcase lowercase
+              line[ lineIndex++ ] = c-'a'+'A';
+            } else {
+              line[ lineIndex++ ] = c;
+            }
+          }
+          break;
+       }
+    }
+  }
+}
+
+/**********************
+* void processIncomingLine( char* line, int charNB ) - Main loop
+* char* line : Line to process
+* int charNB : Number of characters
+***********************/
+void processIncomingLine( char* line, int charNB ) {
+  int currentIndex = 0;
+  char buffer[ 64 ];                                 // Hope that 64 is enough for 1 parameter
+  struct point newPos;
+  
+  newPos = actuatorPos; // Set new position to current servo position, individual values are reused if new ones not list in command 
+  
+  while( currentIndex < charNB ) {
+    switch ( line[ currentIndex++ ] ) {              // Select command, if any
+      case 'G':
+        switch ( atoi( line+currentIndex ) ){                   // Select G command
+          case 0:                                   // G00 & G01 - Movement or fast movement. Same here
+          case 1:
+            char* indexX = strchr( line+currentIndex, 'X' );  // Get X/Y position in the string (if any)
+            char* indexY = strchr( line+currentIndex, 'Y' );
+            char* indexZ = strchr( line+currentIndex, 'Z' );
+            if ( indexX != NULL ) { // Find new current position and direction of motion if available
+              newPos.x = atoi( indexX + 1); // get value from the line char array as a int
+              if ( newPos.x < MOVEMENT_MIN ) newPos.x = MOVEMENT_MIN;
+              if ( newPos.x > MOVEMENT_MAX ) newPos.x = MOVEMENT_MAX;              
+              newPos.xDirection = ( (newPos.x - actuatorPos.x) > 0); // Determine direction of motion - incorrect for zero motion
+              if ( !actuatorPos.xDirection && newPos.xDirection ) newPos.x += BACKLASH; // if servo switches from a negative to a positive direction add backlash
+              if ( actuatorPos.xDirection && !newPos.xDirection ) newPos.x -= BACKLASH; // if servo switches from a positive to a negative direction add backlash
+            }          
+            if ( indexY != NULL ) {
+              newPos.y = atoi( indexY + 1); 
+              if ( newPos.y < MOVEMENT_MIN ) newPos.y = MOVEMENT_MIN;
+              if ( newPos.y > MOVEMENT_MAX ) newPos.y = MOVEMENT_MAX;               
+              newPos.yDirection = ( (newPos.y - actuatorPos.y) > 0); // Determine direction of motion - incorrect for zero motion
+              if ( !actuatorPos.yDirection && newPos.yDirection ) newPos.y += BACKLASH; // if servo switches from a negative to a positive direction add backlash
+              if ( actuatorPos.yDirection && !newPos.yDirection ) newPos.y -= BACKLASH; // if servo switches from a positive to a negative direction add backlash
+            }
+            if ( indexZ != NULL ) { 
+              newPos.z = atoi( indexZ + 1);
+              if ( newPos.z < MOVEMENT_MIN ) newPos.z = MOVEMENT_MIN;
+              if ( newPos.z > MOVEMENT_MAX ) newPos.z = MOVEMENT_MAX; 
+              newPos.zDirection = ( (newPos.z - actuatorPos.z) > 0); // Determine direction of motion - incorrect for zero motion
+              if ( !actuatorPos.zDirection && newPos.zDirection ) newPos.z += BACKLASH; // if servo switches from a negative to a positive direction add backlash
+              if ( actuatorPos.zDirection && !newPos.zDirection ) newPos.z -= BACKLASH; // if servo switches from a positive to a negative direction add backlash          
+            } 
+            servoZ.write( newPos.z);   // Drop or lift z-axis 
+            // only run command if movement is required
+            if ( actuatorPos.x!=newPos.x || actuatorPos.y!=newPos.y ) drawLine( actuatorPos.x, actuatorPos.y, newPos.x, newPos.y );
+            actuatorPos = newPos;
+            Serial.println("ok"); // acknowledge as required by reprap standards to work with replicatorG
+            break;
+        }
+        break;
+      case 'M':
+        buffer[0] = line[ currentIndex++ ];        // /!\ Dirty - Only works with 3 digit commands
+        buffer[1] = line[ currentIndex++ ];
+        buffer[2] = line[ currentIndex++ ];
+        buffer[3] = '\0';
+        switch ( atoi( buffer ) ){
+          case 114:                                // M114 - Repport position
+            Serial.print( "ok C: X:" );
+            Serial.print( actuatorPos.x );
+            Serial.print( " Y:" );
+            Serial.print( actuatorPos.y );
+            Serial.print( " Z:" );
+            Serial.println( actuatorPos.z );
+            break;
+          default:
+            Serial.print( "!! Command not recognized : M");
+            Serial.println( buffer );
+        }
+    }
+  }
+}
+/*********************************
+ * Draw a line from (x0;y0) to (x1;y1). Bresenham algorythm from http://rosettacode.org/wiki/Bitmap/Bresenham's_line_algorithm
+* int (x1;y1) : Starting coordinates
+* int (x2;y2) : Ending coordinates
+**********************************/
+void drawLine(int x0, int y0, int x1, int y1) {
+  int dx = abs(x1-x0), sx = x0<x1 ? 1 : -1;
+  int dy = abs(y1-y0), sy = y0<y1 ? 1 : -1;
+  int err = (dx>dy ? dx : -dy)/2, e2;
+  for(;;){
+    servoX.write( x0 );
+    servoY.write( y0 );
+    if (x0==x1 && y0==y1) break;
+    e2 = err;
+    if (e2 >-dx) {
+      err -= dy;
+      x0 += sx;
+    }
+    if (e2 < dy) {
+      err += dx;
+      y0 += sy;
+    }
+//    Serial.print( "// X=" ); Serial.print( x0 ); Serial.print( "  -  Y=" ); Serial.println( y0 );
+    delay( STEP_DELAY );           //delay for settling
+  }
+}
+
+
