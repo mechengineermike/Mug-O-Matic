@@ -7,16 +7,15 @@ All 60 unique 3D printed components are designed for replication, modularity, an
 
 The intent of the project is to produce a unique and accessible educational tool. One that encourages children to engage in tinkering and making things because those activities are powerful ways to learn and inspire people to pursue STEM careers. 
 
-License = CC BY-SA 4.0
-
+License = CC BY-SA 4.0.
 
   NOTES ON GITHUB PROGRAM DOCUMENTS:
-  
--Mug-O_Matic & Post-it-Plotter use the same code, with the only difference being a section of constants being commented out at the beginning. 
--Programs list & description:
-    -G-code reader 
-    -Dual Joystick Manual Control
-    -Algorythm Plotting
+*Mug-O_Matic & Post-it-Plotter use the same code, with the only difference being a section of constants being commented out at the beginning. 
+
+Programs list & description:
+    -G-code reader.
+    -Dual Joystick Manual Control.
+    -Algorythm Plotting.
     
     
     
