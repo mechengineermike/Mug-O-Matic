@@ -10,12 +10,13 @@ The intent of the project is to produce a unique and accessible educational tool
 License = CC BY-SA 4.0
 
 
-  NOTES ON GITHUB PROGRAM DOCUMENTS. 
-*Mug-O_Matic & Post-it-Plotter use the same code, with the only difference being a section of constants being commented out at the beginning. 
-*Programs list & description:
-    *G-code reader 
-    *Dual Joystick Manual Control
-    *Algorythm Plotting
+  NOTES ON GITHUB PROGRAM DOCUMENTS:
+  
+-Mug-O_Matic & Post-it-Plotter use the same code, with the only difference being a section of constants being commented out at the beginning. 
+-Programs list & description:
+    -G-code reader 
+    -Dual Joystick Manual Control
+    -Algorythm Plotting
     
     
     
