@@ -1,0 +1,28 @@
+ 
+ //add this to draw line algorythm to make it draw in segments.   
+ //Keep a seperate "lineFast"  for drawing straight lines <15mm that dont need to be segments. 
+ 
+ //m = (yt-y0)/(xt-x0)
+// Intermediate y positions for breaking into segments
+//yt=slope*(xt-x0)+y0
+ 
+ 
+ float x1, y1, slope, dist;
+ slope = (yt-y0)/(xt-x0);
+  for (int i=0; i*Resolution < xt; i++ ) //i = counter to find intermediate drawable points along the desired slope based on the resolution
+  { 
+    x1 = x0 + Resolution*i;
+    y1 = y0 + slope*(x1-x0);
+    dist = lineDist(deg2mm(Xpos), deg2mm(Ypos), x1, y1);
+  
+    while (dist < Resolution){
+      i++;
+      x1 = x0 + Resolution*i;
+      y1 = y0 + slope*(x1-x0);
+      dist = lineDist(deg2mm(Xpos), deg2mm(Ypos), x1, y1);
+	  }
+	servoX.write(x1);
+    servoY.write(y1);
+	Xpos = x1; //current position in deg
+    Ypos = y1; //current position in deg
+	}
