@@ -1,0 +1,26 @@
+ //Grid Drawing Algorythm
+ //Intent: Draw a checkerboard pattern of specified spacing.  Used for the MoM & PoP Logo Background.
+ //Do so by drawing two seperate squiggle lines and finishing with a box to smooth it out
+ 
+  //divide X & Y total range by the minimum resolution to find # rows and columns (use INT type to round result)
+ //Home();
+ //Vertical  Zig-zag (Starting from HOME position
+ //inputs = (X spacing, Y spacing)
+ // for (i < ColumnNum, i++){
+	 //draw line down
+	 //draw line right
+	 //draw line up
+	 //draw line right
+	//}
+  
+ //Horizontal Zig-zag
+ 
+  // for (j < RowNum, i++){
+	 //draw line right
+	 //draw line down
+	 //draw line Left
+	 //draw line down
+	//}
+ 
+
+	
