@@ -1,15 +1,15 @@
 /* 
-Mug-O-Matic/Post-It-Plotter "Drawing-Calibration-Shapes" Program
-A Simple Arduino Sketch to draw rectangles, concentric rectangles, circles, concentric circles for fun & calibration purposes.
+Mug-O-Matic/Post-It-Plotter Drawing Program A.
+A Simple Arduino Sketch to draw rectangles, concentric rectangles, circles, concentric circles
 
 License: Attribution-ShareAlike CC BY-SA 4.0
 Last Updated July 2018
 
 Attribution Credits:
+  Modified for current use by Michael Graham, https://engineerdog.com/
   Based on work by Makerblock, http://shor.tw/110
   Based on work by Heindal, https://www.thingiverse.com/thing:667454
   Based on work by Oliv4945: https://github.com/Oliv4945/GcodeMiniCNChttps://github.com/Oliv4945/Gc
-  Modified for current use by Michael Graham, https://engineerdog.com/
  
 // The Circuit per PINOUT IMAGE http://meped.io/mepedv2
 //  A0 =  (Wifi Connection if in use)
@@ -63,27 +63,27 @@ float deg2mm(float deg) {return deg/2.25;} //  Converts mm to degrees for the se
 float mm2deg(float mm) {return mm*2.25;} //  Converts mm to degrees for the servos. 2.25 is hard set by 180deg/80mm motion
 
 // Define drawing settings
-int OvershootThreshold = 12; //mm, minimum distance at which to break continuous motion into 2 steps to prevent overshoot.
-int BrakeDist = 6; //mm, If a long move is broken into 2 steps, this is the last step.
+//int OvershootThreshold = 12; //mm, minimum distance at which to break continuous motion into 2 steps to prevent overshoot.
+//int BrakeDist = 6; //mm, If a long move is broken into 2 steps, this is the last step.
 int BacklashAngle = 2; //deg added to all moves if a direction change occurs to account for slop/backlash in the system (This was a measured angle)
 int Resolution = 1; //mm of minimum drawing resolution to consolidate impossible moves less than this distance into one movement of this length.
-int StepDelay = 400; //ms delay between steps to ensure steps are independent moves. 
-int LineDelay = 400; //ms delay line move is completed
-int penDelay = 750; //ms delay to ensure pen move is completed
+int StepDelay = 50; //ms delay between steps to ensure steps are independent moves. 
+int LineDelay = 200; //ms delay after line move to ensure move is completed
+int penDelay = 500; //ms delay to ensure pen move is completed
 int oldDirX =0; //-1,0,1. Place holder to record the direction of the last motion in this axis to use for backlash correction.
 int newDirX =0; //-1,0,1. Place holder to record the direction of the last motion in this axis to use for backlash correction.
 int oldDirY =0; //-1,0,1. Place holder to record the direction of the last motion in this axis to use for backlash correction.
 int newDirY =0; //-1,0,1. Place holder to record the direction of the last motion in this axis to use for backlash correction.
 
-
 //Specific to Mug-O-Matic
 //  Define Robot limits, in degrees
-int Xdmin = 35;  //43 if choked up
-int Xdmax = 155; //137 if choked up
+int Xdmin = 17;  //43 if choked up
+int Xdmax = 145; //137 if choked up
 int Ydmin = 0;  
-int Ydmax = 180;  
-int Zdmin = 31; // Drawing engagement position //NOTE Want to keep this tight to increase load on rotational axis to reduce overshoot
-int Zdmax = 96; //  Lifted Pen Position
+int Ydmax = 175;  
+int Zdmin = 14; // 29Drawing engagement position //NOTE Want to keep this tight to increase load on rotational axis to reduce overshoot
+int Zdmax = 50; //  Lifted Pen Position
+
 
 /* 
 //Specific to Post-It-Plotter
@@ -96,7 +96,6 @@ int Zdmin = 150; //70  // Drawing engagement position (Z-dir Reversed between po
 int Zdmax = 18; // Lifted Pen Position
 //*/
 
-
 //  Calculated drawing robot limits, in mm
 float Xmin = deg2mm(Xdmin);
 float Xmax = deg2mm(Xdmax);
@@ -104,14 +103,11 @@ float Ymin = deg2mm(Ydmin);
 float Ymax = deg2mm(Ydmax);
 float Zmin = deg2mm(Zdmin);
 float Zmax = deg2mm(Zdmax);
-
-
 int Xpos = Xdmin;   //Home Position (deg)
 int Ypos = Ydmin;  //Home Position (deg)
 int Zpos = Zdmax; //Home Position (deg)
 
 boolean verbose = true; //If 'true' then print positional feedback to arduino serial monitor.
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //*SETUP*
@@ -130,7 +126,7 @@ void setup() {
     Serial.print("Z range is from ("); Serial.print(Zmin); Serial.print(" to "); Serial.print(Zmax); Serial.print(" mm) or ("); Serial.print(Zdmin); Serial.print(" to "); Serial.print(Zdmax); Serial.println(") deg."); 
   }
   
-   Countdown;
+ //  Countdown;
    home();
 
    
@@ -144,29 +140,17 @@ void loop()
   servoX.attach( SERVOPINX );
   servoY.attach( SERVOPINY );
   servoZ.attach( SERVOPINZ );
-     
- //drawRect(Xmin,Ymin,Xmax,Ymax,true); //Trace Extents
- 
+      
  //drawCircle(40, 40, 30); //X position of center, y position of center, radius. Units are millimeters
- //drawCircleSpiral(40, 30, 10, 1); //X position of center, y position of center, radius, spiral spacing. Units are millimeters
+ //drawCircleSpiral(40, 40, 30, 3); //X position of center, y position of center, radius, spiral spacing. Units are millimeters
  //drawRect(0,0,3,3,true); //(x0, y0, x1, y1, boolean pen toggle (dry run if set false)). Units are millimeters
- drawRectSpiral(Xmin,Ymin,Xmax,Ymax,2.5, true); //(x0, y0, x1, y1, spiral spacing, boolean pen toggle (dry run if set false)). Units are millimeters
+ drawRectSpiral(Xmin,Ymin,Xmax,Ymax,3, true); //(x0, y0, x1, y1, spiral spacing, boolean pen toggle (dry run if set false)). Units are millimeters
 
-    //servoX.write( 50 );
-    //servoY.write( Ydmin );
-   // servoZ.write(Zdmax);
-  //  delay(500);
-    
-  //  servoX.write( 55);
-   // servoY.write( Ydmax );
-   //  servoZ.write(Zdmax);
-  ///  delay(500);  
- 
   servoX.detach( );
   servoY.detach( );
   servoZ.detach( );
   Buzz();
-  delay(3000); //here for experimentation only, will eventually move entire program into setup so it only draws once, then beeps on loop to remind you to unplug.
+  delay(10000); //here for experimentation only, will eventually move entire program into setup so it only draws once, then beeps on loop to remind you to unplug.
   }
 
   
@@ -195,7 +179,7 @@ void drawCircle(float x0, float y0, float rad) //X position of center, y positio
   for (int i=0; i*Resolution < rad*2; i++ ){ 
     x1 = x0 + Resolution*i - rad;
     y1 = y0 + returnY(x1, x0, rad);
-    dist = lineDist(deg2mm(Xpos), deg2mm(Ypos), x1, y1);
+    dist = lineDist(deg2mm(Xpos), deg2mm(Ypos), x1, y1);  
   
     while (dist < Resolution){
       i++;
@@ -258,68 +242,86 @@ void drawRect(float x0, float y0, float x1, float y1, boolean toggle)  //inputs 
   }
  
 
-void drawLine(float x2, float y2) { //Inputs are in mm
+void drawLine(float x2, float y2) { //Inputs are in mm, All Calcs within drawLine are in Deg!!
+  //Note difference between positions: Original '0', Current 'pos', Ultimate Target 't', Immediate target '1'
  
-  float x0 = Xpos; //current position in deg
+  float x0 = Xpos; //current position in deg. 
   float y0 = Ypos; //current position in deg
   
   float xt = mm2deg(x2); //convert target position to DEG
   float yt = mm2deg(y2); //convert target position to DEG
   
-  //Record the direction of this move for X & Y to help us correct for lost motion if the servo changes direction.
-  oldDirX = newDirX; //Preserve the prior direction command
-  oldDirY = newDirY; //Preserve the prior direction command
-  newDirX = (xt-x0)/abs((xt-x0+.001)); //note the .001 is to prevent divide by zero err. These variables are INT so it will round off. Can only be -1,0,1
-  newDirY = (yt-y0)/abs((yt-y0+.001));
-	if (newDirX != oldDirX){
-		xt = xt + BacklashAngle*newDirX;
-	}
-	if (newDirY != oldDirY){
-		yt = yt + BacklashAngle*newDirY;
-	}
-	
-  //  Bring instructions within limits
+    //  Bring instructions within limits
   if (xt >= Xdmax) { xt = Xdmax; }
   if (xt <= Xdmin) { xt = Xdmin; }
   if (yt >= Ydmax) { yt = Ydmax; }
   if (yt <= Ydmin) { yt = Ydmin; }
-  
-      //Move to target positions & update positionrecord
-	  servoX.write(xt);
-      servoY.write(yt);
-      Xpos = xt; //current position in deg
-      Ypos = yt; //current position in deg
-    
+ 
+  //Record the direction of this move for X & Y to help us correct for lost motion if the servo changes direction.
+  oldDirX = newDirX; //Preserve the prior direction command
+  oldDirY = newDirY; //Preserve the prior direction command
+  newDirX = (xt-x0)/abs((xt-x0+.0001)); //note the .0001 is to prevent divide by zero err. These variables are INT so it will round off. Can only be -1,0,1
+  newDirY = (yt-y0)/abs((yt-y0+.0001));
+	if (newDirX != oldDirX){
+		xt = xt + BacklashAngle*newDirX; //BacklashAngle = magnitude, newDir = direction
+	}
+	if (newDirY != oldDirY){
+		yt = yt + BacklashAngle*newDirY; //BacklashAngle = magnitude, newDir = direction
+	}
+
     if(verbose){
     Serial.print("Going to ("); Serial.print(deg2mm(xt)); Serial.print(", "); Serial.print(deg2mm(yt)); Serial.print(", "); //Serial.print(deg2mm(zt));
     Serial.print(" mm) OR ("); 
     Serial.print(xt); Serial.print(", "); Serial.print(yt); Serial.println(", deg )");// Serial.print(", "); //Serial.print(zt);
-    }
+	}
+	
+  float x1=x0;
+  float y1=y0;
+//  float slope = (deg2mm(yt)-deg2mm(y0))/(deg2mm(xt)-deg2mm(x0)+.0001); //calc in MM!, resultant slope is unitless
+  float distTotal = abs(lineDist(deg2mm(x0), deg2mm(y0), deg2mm(xt), deg2mm(yt)));//Total move distance
+  float distSegment = lineDist(deg2mm(x0), deg2mm(y0), deg2mm(xt), deg2mm(yt));//segment move distance
+  int tol = 5; //position error tolerance in deg
+  int stepCount = distTotal/Resolution;
 
+  for (int i=0; i<stepCount; i++ ) //i = incremented stepcounter to find intermediate drawable points along the desired slope based on the resolution
+  { 
+  	if (((xt-tol) <= Xpos && Xpos <= (xt+tol)) && ((yt-tol) <= Ypos  && Ypos <= (yt+tol)) ){ //check if target position reached within tolerance
+		break;
+	} else if (stepCount <= 1){ //skip stepping if the move is already super small. 
+		break;}
+	
+    x1 = x0 + i*(xt-x0)/stepCount; 
+    y1 = y0 + i*(yt-y0)/stepCount;
+    distSegment = lineDist(deg2mm(Xpos), deg2mm(Ypos), deg2mm(x1), deg2mm(y1));   //LineDist inputs are in mm!!
+	
+	servoX.write(x1);
+    servoY.write(y1);
+	Xpos = x1; //record current position in deg
+	Ypos = y1; //record current position in deg
+    delay(StepDelay);    //Delay before next lines to ensure this line is completed
+  }
+	//Move to original target positions & update position record
+	servoX.write(xt);
+    servoY.write(yt);
+	Xpos = xt; //record current position in deg
+	Ypos = yt; //record current position in deg
     delay(LineDelay);    //Delay before next lines to ensure this line is completed
 }
    
 //  Raises pen
 void penUp() {   //servoZ.attach( SERVOPINZ );
-  //servoZ.attach( SERVOPINZ ); //I had experimented with detaching this motor when not in use to conserve power...
   servoZ.write(Zdmax); delay(penDelay); Zpos=Zdmax;   if(verbose){Serial.println("Pen up!"); }
-  //servoZ.detach( );
 }
 
 //  Lowers pen
 void penDown() {
-  //servoZ.attach( SERVOPINZ ); //I had experimented with detaching this motor when not in use to conserve power...
   servoZ.write(Zdmin); delay(penDelay); Zpos=Zdmin;   if(verbose){Serial.println("Pen down.");}
- // servoZ.detach( );
 }
 
   //  Sends printer to home position without drawing on anything
   void home(){
     penUp();
-    servoX.write(Xdmin);  //  Set & move to initial default position
-    servoY.write(Ydmin);
-    delay(LineDelay);
-
+    drawLine(Xdmin,Ydmin);
   }
 
 //Equation for a circle, Returns Y component given radius & x component
