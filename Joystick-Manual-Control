@@ -13,12 +13,12 @@ Attribution Credits:
   Modified for current use by Michael Graham, https://engineerdog.com/
  
 // The Circuit per PINOUT IMAGE http://meped.io/mepedv2
-//  A0 =  (Wifi Connection if in use)
-//  A1 =  (Wifi Connection if in use)
+//  A0 = Left Joystick X
+//  A1 =  Left Joystick Y
 //  A2 = (Ultrasonic Echo if in use)
 //  A3 = (Ultrasonic Trig if in use)
-//  A4 = (SCA Connection if in use)
-//  A5 = (I2C SCL Connection if in use)
+//  A4 =  Right Joystick X
+//  A5 =  Right Joystick Y
 //  A6 = 
 //  A7 = 
 //  D0 (RX) = (Bluetooth TX connection if in use)
@@ -31,10 +31,10 @@ Attribution Credits:
 //  D7(S6)=  
 //  D8(S7) =  
 //  D9~(S8) = 
-//  D10~(S9) = Buzzer long leg
+//  D10~(S9) =
 //  D11~ = 
 //  D12 = (IR Remote Input if in use)
-//  D13 = (Embedded LED on this pin)
+//  D13 = (Embedded LED & Buzzer on this pin)
 //  Any 5V =  
 //  Any GND = Buzzer short leg
 */
@@ -143,6 +143,11 @@ void setup() {
 void loop() 
   {
  
+ Check Analog sensors
+   Move servo 1 to proportioned position
+   If button pressed
+      Buzz
+      Activate 3rd servo 
  
  
  
