@@ -51,9 +51,9 @@ Attribution Credits:
 //#define MOVEMENT_MIN 0
 //#define MOVEMENT_MAX 80 
 //#define STEP_DELAY 25  //ms
-//#define BACKLASH 1.5
-#define POSITIVE true
-#define NEGATIVE false
+#define BACKLASH 1.5
+//#define POSITIVE true
+//#define NEGATIVE false
 
 //Naming Components & Global Variables
 struct point {
@@ -69,47 +69,52 @@ Servo servoX;
 Servo servoY;
 Servo servoZ;
 
-float deg2mm(float deg) {return deg/2.25;} //  Converts mm to degrees for the servos.  2.25 is hard set by 180deg/80mm motion
-float mm2deg(float mm) {return mm*2.25;} //  Converts mm to degrees for the servos. 2.25 is hard set by 180deg/80mm motion
+float deg2mmRack(float deg) {return deg/2.25;} //  Converts mm to degrees for the servos.  2.25 is hard set by 180deg/80mm motion
+float mm2degRack(float mm) {return mm*2.25;} //  Converts mm to degrees for the servos. 2.25 is hard set by 180deg/80mm motion
+float deg2mmPivot(float deg) {return deg/(2.25/1.8);} //  Converts mm to degrees for the servos.  2.25 is hard set by 180deg/80mm motion
+float mm2degPivot(float mm) {return mm*(2.25/1.8);} //  Converts mm to degrees for the servos. 2.25 is hard set by 180deg/80mm motion
+
 
 // Define drawing settings
 int BacklashAngle = 2; //deg added to all moves if a direction change occurs to account for slop/backlash in the system (This was a measured angle)
-int Resolution = 1; //mm of minimum drawing resolution to consolidate impossible moves less than this distance into one movement of this length.
-int StepDelay = 50; //ms delay between steps to ensure steps are independent moves. 
-int LineDelay = 100; //ms delay after line move to ensure move is completed
+int Resolution = 1.75; //mm of minimum drawing resolution to consolidate impossible moves less than this distance into one movement of this length.
+int StepDelay = 40; //ms delay between steps to ensure steps are independent moves. 
+int LineDelay = 150; //ms delay after line move to ensure move is completed
 int penDelay = 500; //ms delay to ensure pen move is completed
 int oldDirX =0; //-1,0,1. Place holder to record the direction of the last motion in this axis to use for backlash correction.
 int newDirX =0; //-1,0,1. Place holder to record the direction of the last motion in this axis to use for backlash correction.
 int oldDirY =0; //-1,0,1. Place holder to record the direction of the last motion in this axis to use for backlash correction.
 int newDirY =0; //-1,0,1. Place holder to record the direction of the last motion in this axis to use for backlash correction.
 
+///*
 //Specific to Mug-O-Matic
 //  Define Robot limits, in degrees
-int Xdmin = 17;  //43 if choked up
-int Xdmax = 145; //137 if choked up
-int Ydmin = 0;  
-int Ydmax = 175;  
-int Zdmin = 14; // 29Drawing engagement position //NOTE Want to keep this tight to increase load on rotational axis to reduce overshoot
+int Xdmin = 12;  //43 if choked up
+int Xdmax = 148; //137 if choked up
+int Ydmin = 8;  
+int Ydmax = 173;  
+int Zdmin = 10; // 10. Dont want too tight or loose enough to lose contact!
 int Zdmax = 50; //  Lifted Pen Position
+//*/
 
 /* 
 //Specific to Post-It-Plotter
 //  Drawing Robot limits, in degrees
-int Xdmin = 15;  
-int Xdmax = 165; 
-int Ydmin = 16;  
-int Ydmax = 165;  
-int Zdmin = 150; //70  // Drawing engagement position (Z-dir Reversed between post-it-Plotter & Mug-O-Matic)
-int Zdmax = 18; // Lifted Pen Position
+int Xdmin = 25;  
+int Xdmax = 179; 
+int Ydmin = 20;  
+int Ydmax = 160;  
+int Zdmin = 110; //70  // Drawing engagement position (Z-dir Reversed between post-it-Plotter & Mug-O-Matic)
+int Zdmax = 180; // Lifted Pen Position
 //*/
 
 //  Calculated drawing robot limits, in mm
-float Xmin = deg2mm(Xdmin);
-float Xmax = deg2mm(Xdmax);
-float Ymin = deg2mm(Ydmin);
-float Ymax = deg2mm(Ydmax);
-float Zmin = deg2mm(Zdmin);
-float Zmax = deg2mm(Zdmax);
+float Xmin = deg2mmPivot(Xdmin);
+float Xmax = deg2mmPivot(Xdmax);
+float Ymin = deg2mmRack(Ydmin);
+float Ymax = deg2mmRack(Ydmax);
+float Zmin = deg2mmRack(Zdmin);
+float Zmax = deg2mmRack(Zdmax);
 int Xpos = Xdmin;   //Home Position (deg)
 int Ypos = Ydmin;  //Home Position (deg)
 int Zpos = Zdmax; //Home Position (deg)
@@ -126,11 +131,11 @@ void setup() {
      home();
 
   actuatorPos.x = Xdmin;
-  actuatorPos.xDirection = NEGATIVE;
+ // actuatorPos.xDirection = NEGATIVE;
   actuatorPos.y = Ydmin;
-  actuatorPos.yDirection = NEGATIVE;
+ // actuatorPos.yDirection = NEGATIVE;
   actuatorPos.z = Zdmax;
-  actuatorPos.zDirection = POSITIVE;
+ // actuatorPos.zDirection = POSITIVE;
   
   Serial.println( "start" );
   Serial.println( "// MiniCNC" );
@@ -234,27 +239,17 @@ void processIncomingLine( char* line, int charNB ) {
             char* indexZ = strchr( line+currentIndex, 'Z' );
             if ( indexX != NULL ) { // Find new current position and direction of motion if available
               newPos.x = atoi( indexX + 1); // get value from the line char array as a int
-             // if ( newPos.x < Xmin ) newPos.x = Xmin;
-            //  if ( newPos.x > Xmax ) newPos.x = Xmax;              
-              newPos.xDirection = ( (newPos.x - actuatorPos.x) > 0); // Determine direction of motion - incorrect for zero motion
-             // if ( !actuatorPos.xDirection && newPos.xDirection ) newPos.x += BACKLASH; // if servo switches from a negative to a positive direction add backlash
-             // if ( actuatorPos.xDirection && !newPos.xDirection ) newPos.x -= BACKLASH; // if servo switches from a positive to a negative direction add backlash
             }          
             if ( indexY != NULL ) {
               newPos.y = atoi( indexY + 1); 
-              //if ( newPos.y < Ymin ) newPos.y = Ymin;
-              //if ( newPos.y > Ymax ) newPos.y = Ymax;               
-              newPos.yDirection = ( (newPos.y - actuatorPos.y) > 0); // Determine direction of motion - incorrect for zero motion
-             // if ( !actuatorPos.yDirection && newPos.yDirection ) newPos.y += BACKLASH; // if servo switches from a negative to a positive direction add backlash
-             // if ( actuatorPos.yDirection && !newPos.yDirection ) newPos.y -= BACKLASH; // if servo switches from a positive to a negative direction add backlash
             }
 			
             if ( indexZ != NULL ) { 
               newPos.z = atoi( indexZ + 1);
               if ( newPos.z < Zmin ) newPos.z = Zmin;
               if ( newPos.z > Zmax ) newPos.z = Zmax; 
-              newPos.zDirection = ( (newPos.z - actuatorPos.z) > 0); // Determine direction of motion - incorrect for zero motion
-              //if ( !actuatorPos.zDirection && newPos.zDirection ) newPos.z += BACKLASH; // if servo switches from a negative to a positive direction add backlash
+            //  newPos.zDirection = ( (newPos.z - actuatorPos.z) > 0); // Determine direction of motion - incorrect for zero motion
+            ////  if ( !actuatorPos.zDirection && newPos.zDirection ) newPos.z += BACKLASH; // if servo switches from a negative to a positive direction add backlash
              // if ( actuatorPos.zDirection && !newPos.zDirection ) newPos.z -= BACKLASH; // if servo switches from a positive to a negative direction add backlash          
             }
             servoZ.write( newPos.z);   // Drop or lift z-axis 
@@ -295,8 +290,9 @@ void drawLine(float x2, float y2) { //Inputs are in mm, All Calcs within drawLin
   float x0 = Xpos; //current position in deg. 
   float y0 = Ypos; //current position in deg
   
-  float xt = mm2deg(x2); //convert target position to DEG
-  float yt = mm2deg(y2); //convert target position to DEG
+  //Convert & SHIFT/INVERT instructions. Y axis inverted in Gcode & X origin position Xmin is at some number >0 deg.)
+  float xt = mm2degPivot(x2)+Xdmin; //convert target position to DEG
+  float yt = 179-mm2degRack(y2); //convert target position to DEG
   
     //  Bring instructions within limits
   if (xt >= Xdmax) { xt = Xdmax; }
@@ -316,34 +312,34 @@ void drawLine(float x2, float y2) { //Inputs are in mm, All Calcs within drawLin
 		yt = yt + BacklashAngle*newDirY; //BacklashAngle = magnitude, newDir = direction
 	}
 	
-  float x1=x0;
-  float y1=y0;
-//  float slope = (deg2mm(yt)-deg2mm(y0))/(deg2mm(xt)-deg2mm(x0)+.0001); //calc in MM!, resultant slope is unitless
-  float distTotal = abs(lineDist(deg2mm(x0), deg2mm(y0), deg2mm(xt), deg2mm(yt)));//Total move distance
-  float distSegment = lineDist(deg2mm(x0), deg2mm(y0), deg2mm(xt), deg2mm(yt));//segment move distance
-  int tol = 5; //position error tolerance in deg
+  float x1=x0; //x1,y1 is a moving intermediate position between the beginnning and target position
+  float y1=y0; 
+  float distTotal = abs(lineDist(deg2mmPivot(x0), deg2mmRack(y0), deg2mmPivot(xt), deg2mmRack(yt)));//Total move distance
+  int tol = 5; //allowable tolerance in deg for when to stop segmenting lines and just go to the end position 
   int stepCount = distTotal/Resolution;
 
-  for (int i=0; i<stepCount; i++ ) //i = incremented stepcounter to find intermediate drawable points along the desired slope based on the resolution
-  { 
-  	if (((xt-tol) <= Xpos && Xpos <= (xt+tol)) && ((yt-tol) <= Ypos  && Ypos <= (yt+tol)) ){ //check if target position reached within tolerance
-		break;
-	} else if (stepCount <= 1){ //skip stepping if the move is already super small. 
-		break;}
-	
-    x1 = x0 + i*(xt-x0)/stepCount; 
-    y1 = y0 + i*(yt-y0)/stepCount;
-    distSegment = lineDist(deg2mm(Xpos), deg2mm(Ypos), deg2mm(x1), deg2mm(y1));   //LineDist inputs are in mm!!
-	
-	servoX.write(x1);
-    servoY.write(y1);
-	Xpos = x1; //record current position in deg
-	Ypos = y1; //record current position in deg
-    delay(StepDelay);    //Delay before next lines to ensure this line is completed
-  }
+	if (distTotal > 3*Resolution){  
+		for (int i=0; i<stepCount; i++ ) //i = incremented stepcounter to find intermediate drawable points along the desired slope based on the resolution
+		{ 
+			if (((xt-tol) <= Xpos && Xpos <= (xt+tol)) && ((yt-tol) <= Ypos  && Ypos <= (yt+tol)) ){ //check if target position reached within tolerance
+				break;
+			} else if (stepCount <= 1){ //skip stepping if the move is already super small. 
+				break;}
+			
+			x1 = x0 + i*(xt-x0)/stepCount; 
+			y1 = y0 + i*(yt-y0)/stepCount;
+			
+			servoX.write(x1);
+			servoY.write(y1);
+			Xpos = x1; //record current position in deg
+			Ypos = y1; //record current position in deg
+			delay(StepDelay);    //Delay before next lines to ensure this line is completed
+		}
+	}
 	//Move to original target positions & update position record
 	servoX.write(xt);
-    servoY.write(yt);
+	servoY.write(yt); // Setting origin @ bottom left
+
 	Xpos = xt; //record current position in deg
 	Ypos = yt; //record current position in deg
     delay(LineDelay);    //Delay before next lines to ensure this line is completed
@@ -367,6 +363,7 @@ void penDown() {
   void home(){
     penUp();
     drawLine(Xdmin,Ydmin);
+	delay(1000);
   }
   
   //Determine direct distance between two points in mm
