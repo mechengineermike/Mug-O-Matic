@@ -1,24 +1,24 @@
-/* 
-Mug-O-Matic/Post-It-Plotter "Joystick-Manual-Control" Program
 
-A Simple Arduino Sketch to control your TINY CNC with a single or dual joystick controller.
+/* 
+Mug-O-Matic Joystick Control Program
+A Simple Arduino Sketch to use a joystick to control 2.5 axes of motion. 
 
 License: Attribution-ShareAlike CC BY-SA 4.0
-Last Updated July 2018
+Last Updated September 2018
 
 Attribution Credits:
+  Modified for current use by Michael Graham, https://engineerdog.com/
   Based on work by Makerblock, http://shor.tw/110
   Based on work by Heindal, https://www.thingiverse.com/thing:667454
   Based on work by Oliv4945: https://github.com/Oliv4945/GcodeMiniCNChttps://github.com/Oliv4945/Gc
-  Modified for current use by Michael Graham, https://engineerdog.com/
  
-// The Circuit per PINOUT IMAGE http://meped.io/mepedv2
-//  A0 = Left Joystick X
-//  A1 =  Left Joystick Y
-//  A2 = (Ultrasonic Echo if in use)
-//  A3 = (Ultrasonic Trig if in use)
-//  A4 =  Right Joystick X
-//  A5 =  Right Joystick Y
+// The Circuit 
+//  A0 =  
+//  A1 =  Joystick 1 Switch
+//  A2 =  Joystick 1 X axis
+//  A3 =   Joystick 1 Y axis
+//  A4 = 
+//  A5 = 
 //  A6 = 
 //  A7 = 
 //  D0 (RX) = (Bluetooth TX connection if in use)
@@ -31,17 +31,14 @@ Attribution Credits:
 //  D7(S6)=  
 //  D8(S7) =  
 //  D9~(S8) = 
-//  D10~(S9) =
+//  D10~(S9) = 
 //  D11~ = 
 //  D12 = (IR Remote Input if in use)
-//  D13 = (Embedded LED & Buzzer on this pin)
-//  Any 5V =  
-//  Any GND = Buzzer short leg
+//  D13 = (Embedded LED on this pin)
+//  Any 5V =  Joystick 1 Power
+//  Any GND = Joystick 1 ground
 */
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//*DECLARATIONS*
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <Servo.h>
 
@@ -60,58 +57,80 @@ struct point actuatorPos;
 const int buzzerPin = 9; //Buzzer sound output pin
 const int ledPin = 13;
 
-float deg2mm(float deg) {return deg/2.25;} //  Converts mm to degrees for the servos.  2.25 is hard set by 180deg/80mm motion
-float mm2deg(float mm) {return mm*2.25;} //  Converts mm to degrees for the servos. 2.25 is hard set by 180deg/80mm motion
+float deg2mmRack(float deg) {return deg/2.25;} //  Converts mm to degrees for the servos.  2.25 is hard set by 180deg/80mm motion
+float mm2degRack(float mm) {return mm*2.25;} //  Converts mm to degrees for the servos. 2.25 is hard set by 180deg/80mm motion
+float deg2mmPivot(float deg) {return deg/(2.25/1.8);} //  Converts mm to degrees for the servos.  2.25 is hard set by 180deg/80mm motion
+float mm2degPivot(float mm) {return mm*2.25/1.8;} //  Converts mm to degrees for the servos. 2.25 is hard set by 180deg/80mm motion
+
 
 // Define drawing settings
-int OvershootThreshold = 12; //mm, minimum distance at which to break continuous motion into 2 steps to prevent overshoot.
-int BrakeDist = 6; //mm, If a long move is broken into 2 steps, this is the last step.
-int BacklashAngle = 2; //deg added to all moves if a direction change occurs to account for slop/backlash in the system (This was a measured angle)
-int Resolution = 1; //mm of minimum drawing resolution to consolidate impossible moves less than this distance into one movement of this length.
-int StepDelay = 400; //ms delay between steps to ensure steps are independent moves. 
-int LineDelay = 400; //ms delay line move is completed
-int penDelay = 750; //ms delay to ensure pen move is completed
+int BacklashAngle = 0;//2; //2 deg added to all moves if a direction change occurs to account for slop/backlash in the system (This was a measured angle)
+float Resolution = 1.75; //mm of minimum drawing resolution to consolidate impossible moves less than this distance into one movement of this length.
+int StepDelay = 50; //ms delay between steps to ensure steps are independent moves. 
+int LineDelay = 50; //ms delay after line move to ensure move is completed
+int penDelay = 500; //ms delay to ensure pen move is completed
 int oldDirX =0; //-1,0,1. Place holder to record the direction of the last motion in this axis to use for backlash correction.
 int newDirX =0; //-1,0,1. Place holder to record the direction of the last motion in this axis to use for backlash correction.
 int oldDirY =0; //-1,0,1. Place holder to record the direction of the last motion in this axis to use for backlash correction.
 int newDirY =0; //-1,0,1. Place holder to record the direction of the last motion in this axis to use for backlash correction.
 
-
+///*
 //Specific to Mug-O-Matic
 //  Define Robot limits, in degrees
-int Xdmin = 35;  //43 if choked up
-int Xdmax = 155; //137 if choked up
-int Ydmin = 0;  
-int Ydmax = 180;  
-int Zdmin = 31; // Drawing engagement position //NOTE Want to keep this tight to increase load on rotational axis to reduce overshoot
-int Zdmax = 96; //  Lifted Pen Position
+int Xdmin = 12;  //43 if choked up
+int Xdmax = 148; //137 if choked up
+int Ydmin = 8;  
+int Ydmax = 173;  
+int Zdmin = 10; // Dont want too tight to move or too loose that it loses contact!
+int Zdmax = 25; //  Lifted Pen Position
+//*/
 
 /* 
 //Specific to Post-It-Plotter
 //  Drawing Robot limits, in degrees
-int Xdmin = 15;  
-int Xdmax = 165; 
-int Ydmin = 16;  
-int Ydmax = 165;  
-int Zdmin = 150; //70  // Drawing engagement position (Z-dir Reversed between post-it-Plotter & Mug-O-Matic)
-int Zdmax = 18; // Lifted Pen Position
+int Xdmin = 25;  
+int Xdmax = 179; 
+int Ydmin = 20;  
+int Ydmax = 160;  
+int Zdmin = 110; // Drawing engagement position (Z-dir Reversed between post-it-Plotter & Mug-O-Matic)
+int Zdmax = 180; // Lifted Pen Position
 //*/
 
-
 //  Calculated drawing robot limits, in mm
-float Xmin = deg2mm(Xdmin);
-float Xmax = deg2mm(Xdmax);
-float Ymin = deg2mm(Ydmin);
-float Ymax = deg2mm(Ydmax);
-float Zmin = deg2mm(Zdmin);
-float Zmax = deg2mm(Zdmax);
-
-
+float Xmin = deg2mmPivot(Xdmin);
+float Xmax = deg2mmPivot(Xdmax);
+float Ymin = deg2mmRack(Ydmin);
+float Ymax = deg2mmRack(Ydmax);
+float Zmin = deg2mmRack(Zdmin);
+float Zmax = deg2mmRack(Zdmax);
 int Xpos = Xdmin;   //Home Position (deg)
 int Ypos = Ydmin;  //Home Position (deg)
 int Zpos = Zdmax; //Home Position (deg)
 
-boolean verbose = true; //If 'true' then print positional feedback to arduino serial monitor.
+boolean verbose = false; //If 'true' then print positional feedback to arduino serial monitor, Note that this may make your robot motion slower!
+
+int LeftButtonState = LOW; // Default state of the left button
+float LeftAnalogXState = 0; //Logic variable for recording current state of this analog sensed data
+float LeftAnalogYState = 0; //Logic variable for recording current state of this analog sensed data
+const int LeftButtonPin = 1; // Left Joystick Button, Analog Pin #
+const int LeftAnalogPinX = 2; // X axis Joystick analog pin#
+const int LeftAnalogPinY = 3; // Y axis Joystick analog pin#
+float SpeedL = 1.000;
+float XL = Xpos;
+float YL = Ypos;
+bool ToggleL = false;
+int counterL = 0;
+
+//int RightButtonState = HIGH; // Default state of the left button
+//int RightAnalogXState = 0; //Logic variable for recording current state of this analog sensed data
+//int RightAnalogYState = 0; //Logic variable for recording current state of this analog sensed data
+//const int RightButtonPin = 10; // Right Joystick Button, Digital Pin #
+//const int RightAnalogPinX = 4 // X axis Joystick analog pin#
+//const int RightAnalogPinY = 5 // Y axis Joystick analog pin#
+//int SpeedR = 1;
+//float XR = Xpos;
+//float YR = Ypos;
+//bool toggleR = false;
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -122,18 +141,17 @@ void setup() {
   Serial.begin( 9600 );
   pinMode(buzzerPin, OUTPUT);
   pinMode(ledPin, OUTPUT);
-
-  if(verbose){ //  Optional position feedback notifications
-    Serial.println("Robot Activated!");
-    Serial.print("Drawing Resolution is "); Serial.println(Resolution); 
-    Serial.print("X range is from ("); Serial.print(Xmin); Serial.print(" to "); Serial.print(Xmax); Serial.print(" mm) or ("); Serial.print(Xdmin); Serial.print(" to "); Serial.print(Xdmax); Serial.println(") deg."); 
-    Serial.print("Y range is from ("); Serial.print(Ymin); Serial.print(" to "); Serial.print(Ymax); Serial.print(" mm) or ("); Serial.print(Ydmin); Serial.print(" to "); Serial.print(Ydmax); Serial.println(") deg."); 
-    Serial.print("Z range is from ("); Serial.print(Zmin); Serial.print(" to "); Serial.print(Zmax); Serial.print(" mm) or ("); Serial.print(Zdmin); Serial.print(" to "); Serial.print(Zdmax); Serial.println(") deg."); 
-  }
   
-   Countdown;
+  pinMode(LeftButtonPin, INPUT); //Input_pullup sets the pin to normally LOW, which then gets pull HIGH if the button (normally open) is pressed. 
+  pinMode(LeftAnalogPinX, INPUT);
+  pinMode(LeftAnalogPinY, INPUT);
+  
+ //  Countdown;
+ 
+  servoX.attach( SERVOPINX );
+  servoY.attach( SERVOPINY );
+  servoZ.attach( SERVOPINZ );
    home();
-
    
 }
 
@@ -142,15 +160,13 @@ void setup() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void loop() 
   {
- 
- Check Analog sensors
-   Move servo 1 to proportioned position
-   If button pressed
-      Buzz
-      Activate 3rd servo 
- 
- 
- 
+  
+	CheckSensors();
+	
+	drawLine(XL,YL); 
+	
+	delay(2);
+	 
   }
 
   
@@ -158,71 +174,134 @@ void loop()
 //*Function Definitions*
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   
+  
+  void CheckSensors(){ //Review all input sensors for fresh data and set the robot state
+    
+  LeftAnalogXState = round(analogRead(LeftAnalogPinX)/(1023.000/2.000)-1.000);//-1; //output is between 
+  LeftAnalogYState = round(analogRead(LeftAnalogPinY)/(1023.000/2.000)-1.000);//-1; //output is between 
+  LeftButtonState = analogRead(LeftButtonPin);
+  
+  if (LeftButtonState == 0){
+	  if ( (counterL & 0x01) == 0)
+	 	   if (Zpos != Zdmax){
+		   penUp();
+	   }else{
+		   penDown(); 
+	   }
+	    counterL++;
+		delay(5);
+  }
+  
+      //FOR TROUBLESHOOTING
+       //Serial.print("LeftButtonState");    Serial.println(LeftButtonState);
+       //Serial.print("LeftAnalogXState");    Serial.println(LeftAnalogXState);
+	   //Serial.print("LeftAnalogYState");    Serial.println(LeftAnalogYState);
+  
+   XL = deg2mmPivot(Xpos)+1.5*LeftAnalogYState; //NOTE!!!! I inverted which analog state is affecting which direction, to match the desired motion to joystick direction
+   YL = deg2mmRack(Ypos)-LeftAnalogXState;
+  }
+	   
 
-void drawLine(float x2, float y2) { //Inputs are in mm
+void drawLine(float x2, float y2) { //Inputs are in mm, All Calcs within drawLine are in Deg!!
+  //Note difference between positions: Original '0', Current 'pos', Ultimate Target 't', Immediate target '1'
  
-  float x0 = Xpos; //current position in deg
+  float x0 = Xpos; //current position in deg. 
   float y0 = Ypos; //current position in deg
   
-  float xt = mm2deg(x2); //convert target position to DEG
-  float yt = mm2deg(y2); //convert target position to DEG
+  float xt = mm2degPivot(x2);//+Xdmin; //convert target position to DEG
+  float yt = mm2degRack(y2); //convert target position to DEG
   
-  //Record the direction of this move for X & Y to help us correct for lost motion if the servo changes direction.
-  oldDirX = newDirX; //Preserve the prior direction command
-  oldDirY = newDirY; //Preserve the prior direction command
-  newDirX = (xt-x0)/abs((xt-x0+.001)); //note the .001 is to prevent divide by zero err. These variables are INT so it will round off. Can only be -1,0,1
-  newDirY = (yt-y0)/abs((yt-y0+.001));
-	if (newDirX != oldDirX){
-		xt = xt + BacklashAngle*newDirX;
-	}
-	if (newDirY != oldDirY){
-		yt = yt + BacklashAngle*newDirY;
-	}
-	
-  //  Bring instructions within limits
+    //  Bring instructions within limits
   if (xt >= Xdmax) { xt = Xdmax; }
   if (xt <= Xdmin) { xt = Xdmin; }
   if (yt >= Ydmax) { yt = Ydmax; }
   if (yt <= Ydmin) { yt = Ydmin; }
-  
-      //Move to target positions & update positionrecord
-	  servoX.write(xt);
-      servoY.write(yt);
-      Xpos = xt; //current position in deg
-      Ypos = yt; //current position in deg
-    
+ 
+	  //Record the direction of this move for X & Y to help us correct for lost motion if the servo changes direction.
+	  oldDirX = newDirX; //Preserve the prior direction command
+	  oldDirY = newDirY; //Preserve the prior direction command
+	  newDirX = (xt-x0)/abs((xt-x0+.0001)); //note the .0001 is to prevent divide by zero err. These variables are INT so it will round off. Can only be -1,0,1
+	  newDirY = (yt-y0)/abs((yt-y0+.0001));
+		if (newDirX != oldDirX && newDirX != 0){
+			xt = xt + BacklashAngle*newDirX; //BacklashAngle = magnitude, newDir = direction
+			 if(verbose){Serial.println(" ADJUSTING X BACKLASH ");}
+		}
+		if (newDirY != oldDirY && newDirY != 0){
+			yt = yt + BacklashAngle*newDirY; //BacklashAngle = magnitude, newDir = direction
+			 if(verbose){Serial.println(" ADJUSTING Y BACKLASH ");}
+		}
+	
     if(verbose){
-    Serial.print("Going to ("); Serial.print(deg2mm(xt)); Serial.print(", "); Serial.print(deg2mm(yt)); Serial.print(", "); //Serial.print(deg2mm(zt));
+    Serial.print("Going to ("); Serial.print(deg2mmPivot(xt)); Serial.print(", "); Serial.print(deg2mmRack(yt)); Serial.print(", "); //Serial.print(deg2mm(zt));
     Serial.print(" mm) OR ("); 
     Serial.print(xt); Serial.print(", "); Serial.print(yt); Serial.println(", deg )");// Serial.print(", "); //Serial.print(zt);
-    }
+	}
+	
+  float x1=x0;
+  float y1=y0;
+//  float slope = (deg2mm(yt)-deg2mm(y0))/(deg2mm(xt)-deg2mm(x0)+.0001); //calc in MM!, resultant slope is unitless
+  float distTotal = abs(lineDist(deg2mmPivot(x0), deg2mmRack(y0), deg2mmPivot(xt), deg2mmRack(yt)));//Total move distance
+  int tol = 5; //position error tolerance in deg
+  int stepCount = distTotal/Resolution;
+  
+  /* 
+  if (distTotal < 3){
+	   x1 = xt+40*newDirX; 
+       y1 = yt+40*newDirY;
+	   servoX.write(x1);
+	   servoY.write(y1);
+	   delay(BurstDelay);
+   } else
 
+	   */
+	if (distTotal > 3*Resolution){  
+		for (int i=0; i<stepCount; i++ ) //i = incremented stepcounter to find intermediate drawable points along the desired slope based on the resolution
+		{ 
+			if (((xt-tol) <= Xpos && Xpos <= (xt+tol)) && ((yt-tol) <= Ypos  && Ypos <= (yt+tol)) ){ //check if target position reached within tolerance
+				break;
+			} else if (stepCount <= 1){ //skip stepping if the move is already super small. 
+				break;}
+			
+			x1 = x0 + i*(xt-x0)/stepCount; 
+			y1 = y0 + i*(yt-y0)/stepCount;
+			
+			servoX.write(x1);
+			servoY.write(y1);
+			Xpos = x1; //record current position in deg
+			Ypos = y1; //record current position in deg
+			delay(StepDelay);    //Delay before next lines to ensure this line is completed
+		}
+	}
+  
+	//Move to original target positions & update position record
+	servoX.write(xt);
+    servoY.write(yt);
+	Xpos = xt; //record current position in deg
+	Ypos = yt; //record current position in deg
     delay(LineDelay);    //Delay before next lines to ensure this line is completed
 }
    
 //  Raises pen
 void penUp() {   //servoZ.attach( SERVOPINZ );
-  //servoZ.attach( SERVOPINZ ); //I had experimented with detaching this motor when not in use to conserve power...
   servoZ.write(Zdmax); delay(penDelay); Zpos=Zdmax;   if(verbose){Serial.println("Pen up!"); }
-  //servoZ.detach( );
 }
 
 //  Lowers pen
 void penDown() {
-  //servoZ.attach( SERVOPINZ ); //I had experimented with detaching this motor when not in use to conserve power...
   servoZ.write(Zdmin); delay(penDelay); Zpos=Zdmin;   if(verbose){Serial.println("Pen down.");}
- // servoZ.detach( );
 }
 
   //  Sends printer to home position without drawing on anything
   void home(){
     penUp();
-    servoX.write(Xdmin);  //  Set & move to initial default position
-    servoY.write(Ydmin);
-    delay(LineDelay);
-
+    drawLine(Xdmin,Ydmin);
+	delay(1000);
   }
 
+//Equation for a circle, Returns Y component given radius & x component
+float returnY(float x1, float x0, float rad){
+  return ((int) ((pow( pow(rad, 2) - pow((x1-x0), 2) , 0.5))));
+  }
 
 //Determine direct distance between two points in mm
 float lineDist(float x0, float y0, float x1, float y1) { 
@@ -258,3 +337,4 @@ void BuzzLong() {  //Increasing the duration of the buzz changes the volume dras
    digitalWrite(ledPin, LOW);
 
 }
+
