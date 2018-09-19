@@ -2,30 +2,42 @@
 //Dot Matrix Reader code
 //Key Tool: https://www.dcode.fr/binary-image  
 
- //Notes: Need to make sure the scatter file has # characters matching WIDTH & HEIGHT.
- //Need to normalize between MoM & PoP at cost of usable area. One character per degree.
- //Uses Arduino serial reader Case seperator example. Run by pasting all 20k data points into serial monitor all at once.
+ //Notes: Need to make sure the scatter file has # characters matching WIDTH & HEIGHT broken down by deg/char.
+ //Need to normalize between MoM & PoP at cost of usable area. ~2 deg/character
+ //Uses Arduino serial reader Case seperator example. Run by pasting all 20k data points into serial monitor all at once.....Processing otherwise
  
+ //May need a 'shake algorythm' to enable smaller deg moves.  MUST turn off backlash if so. 
+ // BACKLASH CAUSES STACKED ERROR!!!!!!!!!!!!!
+ //Need algothrhym to lift & home occassionally to prevent problems. 
+    //Test hypothesis by drwing an M FIRST
  
 int WIDTH = ~120 total # characters wide of drawable area. X-axis 
 int HEIGHT = ~170 total # characters high of drawable area. Y-axis
 
+
+
+double DegPerCharX= WIDTH/(XdMax - XdMin)
+double DegPerCharY = HEIGHT/(YdMax - YdMin)
+
+
 Setup
-   lift Z
-   go home position. 
+   Home. (lift Z & go home position. )
 
 Loop(){
 
- WHILE (i<=WIDTH){
-   While (j<=HEIGHT){
-     Check array next character (i,j) 
-     Move to current i,j.
-     if 0: do nothing. 
-     if 1: Drop Z, then Lift Z
-     if 'space': break
-   j++1
+ WHILE (int i=0, i<=WIDTH, i++){
+   While (int j=0, j<=HEIGHT, j++){
+     Check array next character (i,j)  Using the case algorythm
+     Draw Line to current i,j.
+      if 0:
+       do nothing. 
+      if 1: 
+       Drop Z, then Lift Z
+      if 'space'
+       break
+   //j++1
    }
- i++1
+ //i++1
  }
 
 //Kill motors;
