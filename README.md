@@ -12,7 +12,7 @@ The intent of the project is to produce a unique and accessible educational tool
 
 -The assembled Mug-O-Matic toy robot will be for sale on EngineerDog.com and I do not want to create competetion over sales of my own body of work. You may use the files to build a Mug-O-Matic for yourself, but you may not sell them.
 
--However. The software, the PCB design, and the 3d models of subassembly modules & components (linear actuator, pivot joint, brackets, etc) are free for you to use however you wish! Source files ahev been provided!  
+-However. The software, the PCB design, and the 3d models of subassembly modules & components (linear actuator, pivot joint, brackets, etc) are free for you to use however you wish with adequate attribution! Source files have been provided.
 
 HW License for Individual Mechanical Modules = CC BY-SA 4.0.
 https://creativecommons.org/licenses/by-sa/4.0/
