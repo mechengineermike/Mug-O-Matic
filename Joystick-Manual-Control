@@ -197,7 +197,7 @@ void loop()
        //Serial.print("LeftAnalogXState");    Serial.println(LeftAnalogXState);
 	   //Serial.print("LeftAnalogYState");    Serial.println(LeftAnalogYState);
   
-   XL = deg2mmPivot(Xpos)+1.5*LeftAnalogYState; //NOTE!!!! I inverted which analog state is affecting which direction, to match the desired motion to joystick direction
+   XL = deg2mmPivot(Xpos)+1.8*LeftAnalogYState; //NOTE!!!! I inverted which analog state is affecting which direction, to match the desired motion to joystick direction
    YL = deg2mmRack(Ypos)-LeftAnalogXState;
   }
 	   
@@ -337,4 +337,5 @@ void BuzzLong() {  //Increasing the duration of the buzz changes the volume dras
    digitalWrite(ledPin, LOW);
 
 }
+
 
