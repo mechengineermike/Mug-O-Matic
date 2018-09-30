@@ -1,0 +1,118 @@
+// Control servo motor over Bluetooth using RoboRemo app on android phone
+// www.roboremo.com
+//
+
+// Hardware setup:
+// BT module   Arduino
+// GND ------- GND
+// VCC ------- 5V
+// TX-O ------ pin0
+// RX-I ------ pin1
+
+// Servo       Arduino
+// GND ------- GND
+// VCC ------- VCC
+// signal ---- pin4
+
+#define bluetooth Serial
+#include <Servo.h>
+#define PIN_SERVO_X 3
+#define PIN_SERVO_Y 4
+#define PIN_SERVO_Z 5
+
+Servo servoX;
+Servo servoY;
+Servo servoZ;
+
+char cmd[100];
+int cmdIndex;
+float desiredAngleX = 179/2;
+float desiredAngleY = 179/2;
+float desiredAngleZ = 179/2;
+
+float Zdmin = 11.0; // 10. Dont want too tight or loose enough to lose contact!
+float Zdmax = 36.0; //  Lifted Pen Position
+int counterL = 0;
+//int led = 1;
+
+
+void exeCmd() {
+  
+      if(cmd[0]=='y') {
+			desiredAngleY= Serial.parseInt(); 
+			servoY.write(desiredAngleY);  
+			//c='\n';
+		}
+		if(cmd[0]=='x') {
+			desiredAngleX= Serial.parseInt(); 
+			servoX.write(desiredAngleX);   
+			//c='\n';
+		}
+		
+		if(cmd[0]=='p') {
+			if ( (counterL & 0x01) == 0){
+					servoZ.write(Zdmin); 
+					//c='\n'	;				
+				}
+			else{
+					servoZ.write(Zdmax); 
+					//c='\n'	;				
+			}
+	    counterL++;
+		delay(5);
+		}
+       
+}
+
+
+
+void setup() {
+  
+  delay(500); // wait for bluetooth module to start
+
+  bluetooth.begin(9600); // Bluetooth default baud is 115200
+  
+ // myServo.attach(3);// 1000, 2000);
+  
+    delay(500); // wait for bluetooth module to start
+
+  servoX.attach( PIN_SERVO_X );  
+  servoY.attach( PIN_SERVO_Y );   
+  servoZ.attach( PIN_SERVO_Z );   
+  
+//    Serial.setTimeout(8000);      //Stops attempting to talk to computer is no response after 50 milisenconds. Ensures the the arduino does not read serial for too long
+
+  cmdIndex = 0;
+  
+  //Serial.print('led 1\n');                  //send completion of the command "d" stands for "done executing"
+
+}
+
+
+void loop() {
+  
+    //bluetooth.write('led 1\n');                  //send completion of the command "d" stands for "done executing"
+
+  if (Serial.available() ){                  // If data is coming through the USB port to the arduino then...
+    
+    char c = (char)bluetooth.read();
+     
+    if(c=='\n') {
+      cmd[cmdIndex] = 0;
+	  exeCmd();  // execute the command
+      cmdIndex = 0; // reset the cmdIndex
+	  Serial.flush();                     //clear all other commands piled in the buffer
+	  //Serial.print('led 1');
+    } else {      
+      cmd[cmdIndex] = c;
+      if(cmdIndex<99) cmdIndex++;
+	  
+	}
+	 delay(1);
+
+	// }
+  
+}
+}
+  
+
