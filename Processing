@@ -1,0 +1,49 @@
+/**
+Processing code to send Gcode from File on Computer to Mug-O-Matic Drawing robot. 
+**/
+
+import processing.serial.*;
+import java.io.*;
+
+Serial myPort;  // Create object from Serial class
+int val;        // Data received from the serial port
+String command;
+
+void setup() 
+  { 
+  String portName = Serial.list()[0];
+  myPort = new Serial(this, portName, 9600); // Make srue this baud rate is the same as the code written on the arduino
+  
+  readData("C:\\Users\\meche\\Desktop\\GCODE.gcode"); // The file path & File name of the GCODE you will be sending<<<<
+  }
+
+void readData(String myGcodeFile)
+  {
+  File file=new File(myGcodeFile);
+ BufferedReader br=null;
+ try{
+ br=new BufferedReader(new FileReader(file));
+ String text=null;
+ 
+ /* keep reading each line until you get to the end of the file */
+ while((text=br.readLine())!=null){
+ /* Spilt each line up into bits and pieces using a comma as a separator */
+ print(text + '\n');
+ myPort.write(text);
+ myPort.write('\n');
+ delay(3000); //units in ms.   This is the rate that you are sending lines. Beware never go less than 2000 or the machine cant keep up!
+ }
+ }catch(FileNotFoundException e){
+ e.printStackTrace();
+ }catch(IOException e){
+ e.printStackTrace();
+ }finally{
+ try {
+ if (br != null){
+ br.close();
+ }
+ } catch (IOException e) {
+ e.printStackTrace();
+ }
+ }
+}
