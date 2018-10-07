@@ -83,13 +83,13 @@ float mm2degPivot(float mm) {return mm*1.5;} //(2.25/1.8)  Converts mm to degree
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
 //*DEFINE DRAWING SETTINGS* 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////{
-float BacklashAngleX = 2;//3.5;//4;// deg added to all moves if a direction change occurs to account for slop/backlash in the system (This was a measured angle)
-float BacklashAngleY = 1.5;//1; //1 deg added to all moves if a direction change occurs to account for slop/backlash in the system (This was a measured angle)
-float Resolution = 1.0;//1.25;// 1.75; //mm of minimum DIRECT drawing resolution to consolidate impossible moves less than this distance into one movement of this length.
+float BacklashAngleX = 3.5;//3.5;//4;// deg added to all moves if a direction change occurs to account for slop/backlash in the system (This was a measured angle)
+float BacklashAngleY = 1.0;//1; //1 deg added to all moves if a direction change occurs to account for slop/backlash in the system (This was a measured angle)
+float Resolution = 1.25;//1.25;// 1.75; //mm of minimum DIRECT drawing resolution to consolidate impossible moves less than this distance into one movement of this length.
 float DotResolution = .4;//1.0;// 1.75; //mm of minimum DOT drawing resolution to consolidate impossible moves less than this distance into one movement of this length.
 float DotThreshold  = 10; //mm minimum length of lines to do dots instead of direct lines
 
-int StepDelay = 30*(1.25/Resolution)+5;// 45;//30; //ms delay between steps to ensure steps are independent moves. 
+int StepDelay = 30*(1.25/Resolution);// 45;//30; //ms delay between steps to ensure steps are independent moves. 
 int DotStepDelay = 60;//60; //75 ms delay between steps to ensure steps are independent moves. 
 
 int LineDelay = 200; //ms delay after line move to ensure move is completed
@@ -101,13 +101,13 @@ float newDirY =0; //-1,0,1. Place holder to record the direction of the last mot
 
 //Specific to Mug-O-Matic NEWER
 //  Define Robot limits, in degrees
-float Xdmin = 30;//12.0+5;  //43 if choked up
-float Xdmax = Xdmin +144;//148.0+4.0;//148+13; //137 if choked up
+float Xdmin = 12.0+5;  //30;
+float Xdmax = Xdmin +139.5;//148.0+4.0;//
 float Ydmin = 0;//2;//8-6  
 float Ydmax = 180.0;//-2;  
-float ZdTouch = 20;//13.0; // The exact angle that you begin to touch pen to mug
+float ZdTouch = 13.0;// 20// The exact angle that you begin to touch pen to mug
 float Zdmin = ZdTouch -1; // 10. Dont want too tight or loose enough to lose contact!
-float Zdup = ZdTouch +13; // 10. Dont want too tight or loose enough to lose contact!
+float Zdup = ZdTouch +10; // 10. Dont want too tight or loose enough to lose contact!
 float Zdmax = 46.0; //36  Lifted Pen Position
 
 /*
