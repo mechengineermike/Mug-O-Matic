@@ -1,0 +1,133 @@
+/* 
+
+
+Spinning Display Plate Speed controller. As seen in the main HackADay Prize 2018 video for the Mug-O-Matic
+Uses an FS90R to rotate a plate to faciliate photography. COntinuous motion was difficult because I used the cheap chineese board,
+ so this program makes movements in timed intervals. 
+
+*/
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//*DECLARATIONS*
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#include <Servo.h>
+
+#define SERVOPINX 2 //Digital pin number of X-axis servo
+#define SERVOPINY 3 //Digital pin number of Y-Axis servo
+#define SERVOPINZ 4 //Digital pin number of Z-Azis servo
+
+//Naming Components & Global Variables
+Servo servoX;
+Servo servoY;
+Servo servoZ;
+
+boolean verbose = true; //If 'true' then print positional feedback to arduino serial monitor.
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//*SETUP*
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void setup() {
+  Serial.begin( 9600 );
+  pinMode(LED_BUILTIN, OUTPUT);
+ // pinMode(ledPin, OUTPUT);
+
+  if(verbose){ //  Optional position feedback notifications
+    Serial.println("Robot Activated!");
+     }
+  
+ //  Countdown;
+
+  servoX.attach( SERVOPINX );
+  servoY.attach( SERVOPINY );
+  servoZ.attach( SERVOPINZ );
+     
+   
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//* Main loop*
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void loop() 
+  {
+
+  //	servoX.write(95);
+    //delay(500); //here for experimentation only, will eventually move entire program into setup so it only draws once, then beeps on loop to remind you to unplug.
+	
+   // servoX.write(110);
+    //delay(15); //here for experimentation only, will eventually move entire program into setup so it only draws once, then beeps on loop to remind you to unplug.
+  
+  
+  	servoX.write(109);
+    delay(750); //here for experimentation only, will eventually move entire program into setup so it only draws once, then beeps on loop to remind you to unplug.
+	
+   // servoX.write(113);
+  //  delay(100); //here for experimentation only, will eventually move entire program into setup so it only draws once, then beeps on loop to remind you to unplug.
+  
+  
+  
+  
+  }
+
+  
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//*Function Definitions*
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  
+
+  //This pauses the robot for 5 seconds (5000 milliseconds) after it is turned on, per competition requirements. Then it beeps the 5 sec countdown. 
+void Countdown(){  
+  delay (995); 
+  Buzz();
+  delay (995); 
+  Buzz();
+  delay (995); 
+  BuzzLong();
+  delay (950); 
+}
+
+void Buzz() { //Increasing the duration of the buzz changes the volume drastically. Set delay to 80+ms for a loud beep!
+  // digitalWrite(buzzerPin, HIGH);
+  // digitalWrite(ledPin, HIGH);
+  // delay(8);
+  // digitalWrite(buzzerPin, LOW);
+ //  digitalWrite(ledPin, LOW);
+
+ for( int a = 0;a <100; a++){
+   digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
+  delay(1);                       // wait for a second
+  digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
+  delay(2);
+ }
+}
+
+void BuzzLong() {  //Increasing the duration of the buzz changes the volume drastically. Set delay to 80+ms for a loud beep!
+ //  digitalWrite(buzzerPin, HIGH);
+//   digitalWrite(ledPin, HIGH);
+ //  delay(200);
+ //  digitalWrite(buzzerPin, LOW);
+  // digitalWrite(ledPin, LOW);
+ for( int a = 0;a <100; a++){
+   digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
+  delay(1);                       // wait for a second
+  digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
+  delay(1);
+ }
+}
+
+void SweepTest() {  //Increasing the duration of the buzz changes the volume drastically. Set delay to 80+ms for a loud beep!
+
+   for (int pos = 0; pos <= 180; pos += 1) { // goes from 0 degrees to 180 degrees in 1 deg steps
+    servoX.write(pos);              // tell servo to go to position in variable 'pos'
+	servoY.write(pos);              // tell servo to go to position in variable 'pos'
+    servoZ.write(pos);              // tell servo to go to position in variable 'pos	
+    delay(15);                       // waits for servo to reach the position
+  }
+  for (int pos = 180; pos >= 0; pos -= 1) { // goes from 180 degrees to 0 deg in 1 deg steps
+    servoY.write(pos);              // tell servo to go to position in variable 'pos'
+    delay(15);                       // waits for servo to reach the position
+  }
+ 
+ 
+}
