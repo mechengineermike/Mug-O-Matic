@@ -1,0 +1,114 @@
+// Pulley Gantry code 
+// VERY Basic code for sweeping all the servos at once to display the motion of the pulley gantry
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//*DECLARATIONS & CONSTANTS* 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////{
+#include <Servo.h>
+
+#define PIN_SERVO_CLAW 1 
+#define PIN_SERVO_X 2
+#define PIN_SERVO_Y 3
+#define PIN_SERVO_Z 4
+#define PIN_SERVO_J 5
+#define PIN_SERVO_CENTER 10
+
+Servo servoCLAW;
+Servo servoX;
+Servo servoY;
+Servo servoZ;
+Servo servoJ;
+Servo servoCENTER;
+const int buzzerPin = 12;
+const int ledPin = 13;
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
+//*DEFINE DRAWING SETTINGS* 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////{
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
+//*SETUP*
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////{
+
+void setup() {
+  Serial.begin( 9600 );
+  pinMode(buzzerPin, OUTPUT);
+  pinMode(ledPin, OUTPUT);
+  
+  servoX.attach( PIN_SERVO_X );
+  servoY.attach( PIN_SERVO_Y );
+  servoZ.attach( PIN_SERVO_Z );
+  servoJ.attach( PIN_SERVO_J );
+  servoCLAW.attach( PIN_SERVO_CLAW );
+  servoCENTER.attach( PIN_SERVO_CENTER );  servoCENTER.write(179/2); //This servo pin is for assembly, it centers the servo
+  
+     
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
+//* Main loop*
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////{
+void loop() 
+  {  
+  for (int pos = 0; pos <= 180; pos += 1) { // goes from 0 degrees to 180 degrees in 1 deg steps
+    servoX.write(pos);              // tell servo to go to position in variable 'pos'
+	servoY.write(pos);              // tell servo to go to position in variable 'pos'
+    servoZ.write(pos);              // tell servo to go to position in variable 'pos	
+	servoJ.write(pos);              // tell servo to go to position in variable 'pos	
+    delay(2);                       // waits for servo to reach the position
+  }
+  
+  for (int pos = 180; pos >= 0; pos -= 1) { // goes from 180 degrees to 0 deg in 1 deg steps
+    servoX.write(pos);              // tell servo to go to position in variable 'pos'
+	servoY.write(pos);              // tell servo to go to position in variable 'pos'
+    servoZ.write(pos);              // tell servo to go to position in variable 'pos	
+	servoJ.write(pos);              // tell servo to go to position in variable 'pos	
+
+    delay(100);                         // waits for servo to reach the position
+  }
+ 
+ 
+    delay(2000);                         // waits for servo to reach the position
+ 
+  }
+
+  
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
+//*Function Definitions*
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////{
+  
+  
+  //This pauses the robot for 5 seconds (5000 milliseconds) after it is turned on, per competition requirements. Then it beeps the 5 sec countdown. 
+void Countdown(){  
+  delay (995); 
+  Buzz();
+  delay (995); 
+  Buzz();
+  delay (995); 
+  BuzzLong();
+  delay (950); 
+}
+
+void Buzz() { //Increasing the duration of the buzz changes the volume drastically. Set delay to 80+ms for a loud beep!
+   digitalWrite(buzzerPin, HIGH);
+   digitalWrite(ledPin, HIGH);
+   delay(8);
+   digitalWrite(buzzerPin, LOW);
+   digitalWrite(ledPin, LOW);
+
+}
+
+void BuzzLong() {  //Increasing the duration of the buzz changes the volume drastically. Set delay to 80+ms for a loud beep!
+   digitalWrite(buzzerPin, HIGH);
+   digitalWrite(ledPin, HIGH);
+   delay(45);
+   digitalWrite(buzzerPin, LOW);
+   digitalWrite(ledPin, LOW);
+
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
