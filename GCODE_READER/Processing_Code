@@ -7,44 +7,58 @@ import processing.serial.*;
 import java.io.*;
 
 Serial myPort;  // Create object from Serial class
-int val;        // Data received from the serial port
 String command;
 
-void setup() 
-  { 
+void setup() { 
   String portName = Serial.list()[0];
-  myPort = new Serial(this, portName, 9600); // Make srue this baud rate is the same as the code written on the arduino
-  
-  readData("C:\\Users\\meche\\Desktop\\GCODE.gcode"); // The file path & File name of the GCODE you will be sending<<<<
-  }
+  println("Serial Port Number = ",portName);
+  myPort = new Serial(this, portName, 115200); // Make sure this baud rate is the same as the code written on the arduino
+  delay(5000); //units in ms.   This is the rate that you are sending lines. Beware never go less than 2000 or the machine cant keep up!
 
-void readData(String myGcodeFile)
-  {
+  readData("C:\\Users\\meche\\Desktop\\GCODE.gcode"); // The file path & File name of the GCODE you will be sending<<<<
+}
+
+void readData(String myGcodeFile){
   File file=new File(myGcodeFile);
- BufferedReader br=null;
- try{
- br=new BufferedReader(new FileReader(file));
- String text=null;
- 
- /* keep reading each line until you get to the end of the file */
- while((text=br.readLine())!=null){
- /* Spilt each line up into bits and pieces using a comma as a separator */
- print(text + '\n');
- myPort.write(text);
- myPort.write('\n');
- delay(3000); //units in ms. This is the rate that you are sending lines. You can adjust this to go faster but at some point the machine cant keep up!
- }
- }catch(FileNotFoundException e){
- e.printStackTrace();
- }catch(IOException e){
- e.printStackTrace();
- }finally{
- try {
- if (br != null){
- br.close();
- }
- } catch (IOException e) {
- e.printStackTrace();
- }
- }
+  BufferedReader br=null;
+    try{ //This is the Repeated Loop! The 'catch' statments below are to handle unexpected exceptions 
+       br=new BufferedReader(new FileReader(file));
+       String text=null;
+       
+       while( (text=br.readLine()) != null ){  /* keep reading each line until you get to the end of the file */
+       if ( text.equals("") == true ){  //Check if line is empty space
+         println("SKIP_LINE-Space Detected");   
+       }else{
+         char c1 = text.charAt(0); //Cant check this above at the same time or it errors out
+         if ( ((c1 == ';' ) == true) || ((c1 == ' ' ) == true) ){ //Check if line is comment 
+           println("SKIP_LINE-Comment Detected");       
+         } else{ if ( (text.equals("G92 E0") == true) || (text.equals("G1 F60") == true)  || (text.equals("G1 E1.00000 F2400.00000"))   ){ //Check if line is a common useless command
+                   println("SKIP_LINE- Useless Command Detected");    
+                 }else{ 
+                   //OK now we finally know we have a good line,lets prep & send it
+                   print(text,"\n");       /* Spilt each line up into bits using "\n" to communicate the end of line */
+                   myPort.write(text);
+                   myPort.write('\n');
+                   delay(1000); //units in ms.   This is the rate that you are sending lines. Beware never go less than 2000 or the machine cant keep up!
+                 }
+           } 
+         }
+        }
+    }
+     catch(FileNotFoundException e){
+     e.printStackTrace();
+     }
+     catch(IOException e){
+       e.printStackTrace();
+     }
+     finally{
+       try {
+         if (br != null){
+           br.close();
+          }
+       } 
+       catch (IOException e) {
+         e.printStackTrace();
+       }
+     }
 }
