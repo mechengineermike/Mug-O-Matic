@@ -11,23 +11,25 @@ String command;
 
 void setup() { 
   String portName = Serial.list()[0];
+  println("BEGIN DRAWING PROGRAM!");
   println("Serial Port Number = ",portName);
   myPort = new Serial(this, portName, 115200); // Make sure this baud rate is the same as the code written on the arduino
   delay(5000); //units in ms.   This is the rate that you are sending lines. Beware never go less than 2000 or the machine cant keep up!
 
   readData("C:\\Users\\meche\\Desktop\\GCODE.gcode"); // The file path & File name of the GCODE you will be sending<<<<
+    
 }
 
 void readData(String myGcodeFile){
   File file=new File(myGcodeFile);
   BufferedReader br=null;
-    try{ //This is the Repeated Loop! The 'catch' statments below are to handle unexpected exceptions 
+    try{ 
        br=new BufferedReader(new FileReader(file));
        String text=null;
        
-       while( (text=br.readLine()) != null ){  /* keep reading each line until you get to the end of the file */
+       while( (text=br.readLine()) != null ){  // keep reading each line until you get to the end of the file 
        if ( text.equals("") == true ){  //Check if line is empty space
-         println("SKIP_LINE-Space Detected");   
+        println("SKIP_LINE-Space Detected");   
        }else{
          char c1 = text.charAt(0); //Cant check this above at the same time or it errors out
          if ( ((c1 == ';' ) == true) || ((c1 == ' ' ) == true) ){ //Check if line is comment 
@@ -38,14 +40,24 @@ void readData(String myGcodeFile){
                    //OK now we finally know we have a good line,lets prep & send it
                    print(text,"\n");       /* Spilt each line up into bits using "\n" to communicate the end of line */
                    myPort.write(text);
-                   myPort.write('\n');
-                   delay(1000); //units in ms.   This is the rate that you are sending lines. Beware never go less than 2000 or the machine cant keep up!
+                   myPort.write('\n');                   
+                     while (true){  // DO NOT send any more lines until we recieved a "//LineComplete" responce 
+                       String inBuffer = null;   
+                       inBuffer = myPort.readString();   
+                       if (inBuffer != null){    //Attempting to do the.equals command below on an empty (null) string throws an error, so we have this preliminary check
+                         if (inBuffer .equals("//LineComplete") == true) {
+                           println(inBuffer);
+                           break;
+                           } 
+                       }
+                       delay(10);                      
+                     }
                  }
            } 
          }
         }
-    }
-     catch(FileNotFoundException e){
+  }
+     catch(FileNotFoundException e){  //This stuff is attached to the TRY statment above, it prints errors if they occur. 
      e.printStackTrace();
      }
      catch(IOException e){
