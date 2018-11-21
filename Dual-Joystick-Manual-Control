@@ -1,52 +1,50 @@
 /* PROGRAM DESCRIPTION & PINOUT 
-Mug-O-Matic/Post-It-Plotter- Gcode Reading Program
-An Arduino Sketch to control servo motors with joysticks. Currently full function for 4 servos + toggle function for 1 additional servo.
+*TinyCNC Dual Joystick Control Program*
+An Arduino Sketch to control servo motors using 2 joysticks. Each joystick has 2 analog axes of control & is also a button.
+Program currently has full function for 4 servos + toggle function for 1 additional servo (the gripper). 
 
 Last Updated OCT 2018
 
 Attribution Credits:
-  Modified for current use by Michael Graham, https://engineerdog.com/
-  Based on work by Makerblock, http://shor.tw/110
-  Based on work by Heindal, https://www.thingiverse.com/thing:667454
-  Based on work by Oliv4945: https://github.com/Oliv4945/GcodeMiniCNChttps://github.com/Oliv4945/Gc
+  Created by Michael Graham, https://engineerdog.com/
+   Based on work by Makerblock, http://shor.tw/110
+   Based on work by Heindal, https://www.thingiverse.com/thing:667454
+   Based on work by Oliv4945: https://github.com/Oliv4945/GcodeMiniCNChttps://github.com/Oliv4945/Gc
  
 // The Circuit
-//  A1 =  
+//  A0 = Joystick 1 Switch
+//  A1 = Joystick 1 Y-axis
 //  A2 = (Ultrasonic Echo if in use)
 //  A3 = (Ultrasonic Trig if in use)
-//  A4 = (SCA Connection if in use)
-//  A5 = (I2C SCL Connection if in use)
-//  A6 = 
-//  A7 = 
+//  A4 = Joystick 1 X-axis
+//  A5 = Joystick 2 Switch
+//  A6 = Joystick 2 Y-axis
+//  A7 = Joystick 2 X-axis
 //  D0 (RX) = (Bluetooth TX connection if in use)
 //  D1 (TX) = (Bluetooth RX connection if in use)
-//  D2(S1) =  X axis servo
-//  D3~(S2)= Y axis servo
-//  D4(S3) =  Z axis servo
-//  D5~(S4) =  
-//  D6~(S5)= 
+//  D2(S1) =  Gripper axis servo
+//  D3~(S2)= X axis servo
+//  D4(S3) =  Y axis servo
+//  D5~(S4) =  Z axis servo
+//  D6~(S5)= J axis servo
 //  D7(S6)=  
 //  D8(S7) =  
 //  D9~(S8) = 
-//  D10~(S9) = Buzzer long leg
-//  D11~ = 
+//  D10~(S9) = For Centering the Servo
+//  D11~ = Embedded Buzzer Pin
 //  D12 = (IR Remote Input if in use)
 //  D13 = (Embedded LED on this pin)
-//  Any 5V =  
-//  Any GND = Buzzer short leg
 */
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //*DECLARATIONS & CONSTANTS* 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////{
 #include <Servo.h>
-
 #define PIN_SERVO_CLAW 2 
 #define PIN_SERVO_X 3
 #define PIN_SERVO_Y 4
 #define PIN_SERVO_Z 5
 #define PIN_SERVO_J 6
 #define PIN_SERVO_CENTER 10
-
 #define LINE_BUFFER_LENGTH 30
 
 Servo servoCLAW;
@@ -55,7 +53,7 @@ Servo servoY;
 Servo servoZ;
 Servo servoJ;
 Servo servoCENTER;
-const int buzzerPin = 12;
+const int buzzerPin = 11;
 const int ledPin = 13;
 
 float deg2mmRack(float deg) {return deg/2.25;} //  Converts mm to degrees for the servos.  2.25 is hard set by 180deg/80mm motion
@@ -66,16 +64,34 @@ float mm2degPivot(float mm) {return mm*1.5;} //(2.25/1.8)  Converts mm to degree
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
 //*DEFINE DRAWING SETTINGS* 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////{
-float BacklashAngleX = 0;// deg added to all moves if a direction change occurs to account for slop/backlash in the system (This was a measured angle)
-float BacklashAngleY = 0; // deg added to all moves if a direction change occurs to account for slop/backlash in the system (This was a measured angle)
-float Resolution = 1.25;// mm of minimum DIRECT drawing resolution to consolidate impossible moves less than this distance into one movement of this length.
-float DotResolution = .4;//mm of minimum DOT drawing resolution to consolidate impossible moves less than this distance into one movement of this length.
+float BacklashAngleX = 0;//1.5 for non-gcode endeavors// deg added to all moves if a direction change occurs to account for slop/backlash in the system (This was a measured angle)
+float BacklashAngleY = 0; //1.0 for non-gcode endeavors// deg added to all moves if a direction change occurs to account for slop/backlash in the system (This was a measured angle)
 
-int StepDelay = 5; //ms delay between steps to ensure steps are independent moves. 
-int LineDelay = 5; //ms delay after line move to ensure move is completed
-int penDelay = 250; //ms delay to ensure pen move is completed
+float Resolution = 1.25; //mm of minimum DIRECTLY ENGAGED movement resolution to consolidate smaller moves that would otherwise stall the motor into one movement of this length.
+float DotResolution = .4;//mm of minimum DOT drawing resolution length. Experimenting with slightly longer length to improve speed & repeatability<
+int StepDelay = 30*(1.25/Resolution);//ms delay between steps to ensure steps are independent moves. is calculated based on desired resolution  
 
-//Specific to Mug-O-Matic NEWER
+int LineDelay = 10; //ms delay after line move to ensure move is completed
+int penDelay = 250; //ms delay to ensure pen (Z-axis) moves are completed
+float oldDirX =0; //-1,0,1. Place holder to record the direction of the last motion in this axis to use for backlash correction.
+float newDirX =0; //-1,0,1. Place holder to record the direction of the last motion in this axis to use for backlash correction.
+float oldDirY =0; //-1,0,1. Place holder to record the direction of the last motion in this axis to use for backlash correction.
+float newDirY =0; //-1,0,1. Place holder to record the direction of the last motion in this axis to use for backlash correction.
+
+/*
+//Specific to Mug-O-Matic with Dual JoyStick Control
+//  Define Robot limits, in degrees
+float Xdmin = 28;  //30;  //Min X is left of Mug
+float Xdmax = Xdmin +139.5;//148.0+4.0;//  //Max X is right of mug
+float Ydmin = 0;//2;//8-6  //min Y is bottom of mug
+float Ydmax = 180.0;//-2;   //Max Y is top of mug
+float ZdTouch = 20.0;// 13 for MG90 // The exact angle that you begin to touch pen to mug.
+float Zdmin = ZdTouch -5; // The down position for dt drawing. (Added an additional deg to ensure contact on all spots on mug. Dont want too tight or loose enough to lose contact!)
+float Zdup = ZdTouch +12; // The up position for dot drawing.
+float Zdmax = 46.0; //36  Lifted Pen Position, not touching mug and pen clears Frame
+ */
+ 
+//Specific to Jointed Arm
 //  Define Robot limits, in degrees
 float Xdmin = 0;  //43 if choked up
 float Xdmax = 180;//148+13; //137 if choked up
@@ -83,6 +99,11 @@ float Ydmin = 0;//2;//8-6
 float Ydmax = 180.0;//-2;  
 float Zdmin = 0; // 
 float Zdmax = 180.0; //  
+float Jdmin = 0; // 
+float Jdmax = 180.0; //  
+float Cdmin = 126;//180; //  Claw CLOSED Position
+float Cdmax = 60;// 179/2; //  Claw OPEN Position
+ 
 float Jdmin = 0; // 
 float Jdmax = 180.0; //  
 float Cdmin = 126;//180; //  Claw CLOSED Position
@@ -103,16 +124,15 @@ float Zpos = 179/2; //Home Position (deg)
 float Cpos = Cdmax; //Home Position (deg)
 float Jpos = 179/2;   //Home Position (deg)
 
-
 boolean verbose = false; //If 'true' then print positional feedback to arduino serial monitor, Note that this may make your robot motion slower!
 
 int LeftButtonState = LOW; // Default state of the left button
 float LeftAnalogXState = 0; //Logic variable for recording current state of this analog sensed data
 float LeftAnalogYState = 0; //Logic variable for recording current state of this analog sensed data
 const int LeftButtonPin = 0; // Left Joystick Button, Analog Pin #
-const int LeftAnalogPinX = 1; // X axis Joystick analog pin#
-const int LeftAnalogPinY = 2; // Y axis Joystick analog pin#
-float SpeedL = 1.000;
+const int LeftAnalogPinX = 4; // X axis Joystick analog pin#
+const int LeftAnalogPinY = 1; // Y axis Joystick analog pin#
+float SpeedL = 2.000; //1 = 11mm/sec. 
 float X = Xpos;
 float Y = Ypos;
 bool ToggleL = false;
@@ -136,6 +156,8 @@ void setup() {
   pinMode(buzzerPin, OUTPUT);
   pinMode(ledPin, OUTPUT);
   
+  Countdown();
+  
   servoX.attach( PIN_SERVO_X );
   servoY.attach( PIN_SERVO_Y );
   servoZ.attach( PIN_SERVO_Z );
@@ -151,62 +173,40 @@ void setup() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////{
 void loop() 
   {
-  
 	CheckSensors();
-	
 	drawLine(X,Y); 
 	drawLine2(Z,J); 
-
-	//delay(50);
-	 
+	//delay(50); Slow it down
   }
-
   
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
 //*Function Definitions*
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////{
   
-  
-  void CheckSensors(){ //Review all input sensors for fresh data and set the robot state
+void CheckSensors(){ //Review all input sensors for fresh data and set the robot state
     
   LeftAnalogXState = round(analogRead(LeftAnalogPinX)/(1023.000/2.000)-1.000);//-1; //output is between 
   LeftAnalogYState = round(analogRead(LeftAnalogPinY)/(1023.000/2.000)-1.000);//-1; //output is between 
   LeftButtonState = analogRead(LeftButtonPin); //is equal to 0 only if button pressed or disconnected
   
-  RightAnalogXState = round(analogRead(RightAnalogPinX)/(1023.000/2.000)-1.000);//-1; //output is between 
-  RightAnalogYState = round(analogRead(RightAnalogPinY)/(1023.000/2.000)-1.000);//-1; //output is between 
-  RightButtonState = analogRead(RightButtonPin); //is equal to 0 only if button pressed or disconnected
-  
-  if (RightButtonState == 0){
+  if (LeftButtonState == 0){
 	  if ( (counterL & 0x01) == 0)
-	 	   if (Cpos != Cdmax){
-		   clawOpen();
+	 	   if (Zpos != Zdup){
+		     servoZ.write(Zdup); delay(penDelay); Zpos=Zdup; 
+		     clawOpen();
 	   }else{
-		   clawClosed(); 
+		    clawClosed(); 
+			servoZ.write(Zdmin); delay(penDelay); Zpos=Zdmin; 
+			Buzz();
 	   }
 	    counterL++;
 		delay(5);
   } 
-  
-    if (LeftButtonState == 0){
-	//  Buzz();
-  } 
-  
-      //FOR TROUBLESHOOTING
-       Serial.print("LeftButtonState ");    Serial.println(LeftButtonState);
-       Serial.print("LeftAnalogXState ");    Serial.println(LeftAnalogXState);
-	   Serial.print("LeftAnalogYState ");    Serial.println(LeftAnalogYState);
-	   Serial.print("RightButtonState ");    Serial.println(RightButtonState);
-       Serial.print("RightAnalogXState ");    Serial.println(RightAnalogXState);
-	   Serial.print("RightAnalogYState ");    Serial.println(RightAnalogYState);Serial.println(" ");
- 
- 
-   X = deg2mmPivot(Xpos)+1.8*LeftAnalogYState*3; //NOTE INVERTED! CHange + to - to change direction
-   Y = deg2mmRack(Ypos)-LeftAnalogXState*3;//4.5; //NOTE INVERTED! CHange + to - to change direction
-   Z = deg2mmRack(Zpos)-1.8*RightAnalogYState*3;//4.5; //NOTE INVERTED! CHange + to - to change direction
-   J = deg2mmPivot(Jpos)-RightAnalogXState*3;
-   
-   
+
+   X = deg2mmPivot(Xpos)+LeftAnalogYState*.25*.5*SpeedL; //NOTE CHange + to - to change direction
+   Y = deg2mmRack(Ypos)-LeftAnalogXState*.25*.5*SpeedL; //NOTE INVERTED! CHange + to - to change direction
+   Z = deg2mmRack(Zpos)-1.8*RightAnalogYState*1; //NOTE INVERTED! CHange + to - to change direction
+   J = deg2mmPivot(Jpos)-RightAnalogXState*1;   
   }
 	   
 
@@ -286,7 +286,6 @@ void drawLine2(float z2, float j2) { //Inputs are in mm, All Calcs within drawLi
    // Serial.print(" mm) OR ("); 
    // Serial.print(xt); Serial.print(", "); Serial.print(yt); Serial.println(", deg )");// Serial.print(", "); //Serial.print(zt);
 	}
-	
   float z1=z0;
   float j1=j0;
   float distTotal = abs(lineDist(deg2mmPivot(z0), deg2mmRack(j0), deg2mmPivot(zt), deg2mmRack(jt)));//Total move distance
@@ -321,27 +320,23 @@ void drawLine2(float z2, float j2) { //Inputs are in mm, All Calcs within drawLi
     delay(LineDelay);    //Delay before next lines to ensure this line is completed
 }
    
-//  Raises pen
-void penUp() {   //servoZ.attach( SERVOPINZ );
+void penUp() {   //  Raises pen
   servoZ.write(Zdmax); delay(penDelay); Zpos=Zdmax;   if(verbose){Serial.println("Pen up!"); }
 }
 
-//  Lowers pen
-void penDown() {
+void penDown() {//  Lowers pen
   servoZ.write(Zdmin); delay(penDelay); Zpos=Zdmin;   if(verbose){Serial.println("Pen down.");}
 }
 
-//  Opens Claw
-void clawOpen() {
+void clawOpen() { //  Opens Claw
   servoCLAW.write(Cdmax); delay(penDelay); Cpos=Cdmax;   if(verbose){Serial.println("Claw Open");}
 }
-//  Closes Claw
-void clawClosed() {
+
+void clawClosed() {//  Closes Claw
   servoCLAW.write(Cdmin); delay(penDelay); Cpos=Cdmin;   if(verbose){Serial.println("Claw Closed");}
 }
 
-  //  Sends printer to home position without drawing on anything
-  void home(){
+  void home(){  //  Sends printer to home position 
    // penUp();
 	servoCENTER.write(179/2);
 	servoX.write(179/2);
@@ -365,13 +360,13 @@ float lineDist(float x0, float y0, float x1, float y1) {
   
   //This pauses the robot for 5 seconds (5000 milliseconds) after it is turned on, per competition requirements. Then it beeps the 5 sec countdown. 
 void Countdown(){  
-  delay (995); 
+  delay (100); 
   Buzz();
-  delay (995); 
+  delay (555); 
   Buzz();
-  delay (995); 
+  delay (555); 
   BuzzLong();
-  delay (950); 
+  delay (300); 
 }
 
 void Buzz() { //Increasing the duration of the buzz changes the volume drastically. Set delay to 80+ms for a loud beep!
@@ -393,3 +388,6 @@ void BuzzLong() {  //Increasing the duration of the buzz changes the volume dras
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
+//*END OF PROGRAM
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
