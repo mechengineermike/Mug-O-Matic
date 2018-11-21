@@ -1,18 +1,41 @@
-// Control servo motor over Bluetooth using RoboRemo app on android phone
-// www.roboremo.com
-//
+/* PROGRAM DESCRIPTION & PINOUT 
+Mug-O-Matic Bluetooth Program
+An Arduino Sketch to read bluetooth signals send from an android phone using RoboRemo app. www.roboremo.com
 
-// Hardware setup:
-// BT module   Arduino
-// GND ------- GND
-// VCC ------- 5V
-// TX-O ------ pin0
-// RX-I ------ pin1
+HW License: Attribution-ShareAlike CC BY-NC-SA 4.0
+Last Updated OCT 2018
 
-// Servo       Arduino
-// GND ------- GND
-// VCC ------- VCC
-// signal ---- pin4
+Attribution Credits:
+  Created by Michael Graham, https://engineerdog.com/
+  Modified from https://www.roboremo.com/uploads/2/4/5/7/24571986/sketch_bluetooth_servo.ino
+  
+// The Circuit
+//  A0 =  (Joystick 1 switch Connection if in use)
+//  A1 =  (Joystick 1 Y dir Connection if in use)
+//  A2 =  (Ultrasonic Echo if in use)
+//  A3 =  (Ultrasonic Trig if in use)
+//  A4 =  (Joystick 1 X dir Connection if in use)
+//  A5 =  (Joystick 2 switch Connection if in use)
+//  A6 =  (Joystick 2 Y dir Connection if in use)
+//  A7 =  (Joystick 2 X dir Connection if in use)
+//  D0 (RX) = (Bluetooth TX connection if in use)
+//  D1 (TX) = (Bluetooth RX connection if in use)
+//  D2(S1) =  Gripper servo
+//  D3~(S2)=  X axis servo
+//  D4(S3) =  Y axis servo
+//  D5~(S4) = Z axis servo 
+//  D6~(S5)= 
+//  D7(S6)=  
+//  D8(S7) =  
+//  D9~(S8) = 
+//  D10~(S9) = Used as an assembly aid to center servos 
+//  D11~ = Embedded Buzzer 
+//  D12 = (IR Remote Input if in use)
+//  D13 = (Embedded LED on this pin)
+*/
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//*DECLARATIONS & CONSTANTS* 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////{
 
 #define bluetooth Serial
 #include <Servo.h>
@@ -64,8 +87,9 @@ void exeCmd() {
        
 }
 
-
-
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
+//*SETUP*
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////{
 void setup() {
   
   delay(500); // wait for bluetooth module to start
@@ -88,7 +112,9 @@ void setup() {
 
 }
 
-
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
+//* Main loop*
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////{
 void loop() {
   
     //bluetooth.write('led 1\n');                  //send completion of the command "d" stands for "done executing"
@@ -115,4 +141,6 @@ void loop() {
 }
 }
   
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
+
 
