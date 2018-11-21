@@ -1,12 +1,13 @@
 /* PROGRAM DESCRIPTION & PINOUT 
-Mug-O-Matic Gcode Reading Program
-An Arduino Sketch to read gcode sent via serial by a computer running processing, or to draw via algorithms.
+Mug-O-Matic Program!
+An Arduino Sketch for 2.5axis control of a mug plotting robot. 
+Can be controlled with a manual joystick, move via algorithms, or read gcode sent via serial by a computer running processing. 
 
-HW License: Attribution-ShareAlike CC BY-SA 4.0
+HW License: Attribution-ShareAlike CC BY-NC-SA 4.0
 Last Updated NOV 2018
 
 Attribution Credits:
-  Modified for current use by Michael Graham, https://engineerdog.com/
+  Greatly Modified for current use by Michael Graham, https://engineerdog.com/
   Based on work by Makerblock, http://shor.tw/110
   Based on work by Heindal, https://www.thingiverse.com/thing:667454
   Based on work by Oliv4945: https://github.com/Oliv4945/GcodeMiniCNChttps://github.com/Oliv4945/Gc
@@ -65,43 +66,43 @@ Servo servoSWEEP; //Using up a servo pin for the purpose of simple assembly test
 const int buzzerPin = 11; 
 const int ledPin = 13;
 
-float deg2mmRack(float deg) {return deg/2.25;} //  Converts mm to degrees for the servos.  2.25 is hard set by 180deg/80mm motion
-float mm2degRack(float mm) {return mm*2.25;} //  Converts mm to degrees for the servos. 2.25 is hard set by 180deg/80mm motion
-float deg2mmPivot(float deg) {return deg/1.5;} //  Converts mm to degrees for the servos. Is hard set by the dimensions of the mug 
-float mm2degPivot(float mm) {return mm*1.5;} //(=2.25/1.8)  Converts mm to degrees for the servos. Is hard set by the dimensions of the mug
+const float deg2mmRack(float deg) {return deg/2.25;} //  Converts mm to degrees for the servos.  2.25 is hard set by 180deg/80mm motion
+const float mm2degRack(float mm) {return mm*2.25;} //  Converts mm to degrees for the servos. 2.25 is hard set by 180deg/80mm motion
+const float deg2mmPivot(float deg) {return deg/1.5;} //  Converts mm to degrees for the servos. Is hard set by the dimensions of the mug 
+const float mm2degPivot(float mm) {return mm*1.5;} //(=2.25/1.8)  Converts mm to degrees for the servos. Is hard set by the dimensions of the mug
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
 //*DEFINE DRAWING SETTINGS* 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////{
-float BacklashAngleX =0;//1.5 for non-gcode endeavors// deg added to all moves if a direction change occurs to account for slop/backlash in the system (This was a measured angle)
-float BacklashAngleY = 0; //1.0 for non-gcode endeavors// deg added to all moves if a direction change occurs to account for slop/backlash in the system (This was a measured angle)
+const float BacklashAngleX = 0.75;//~.75-1.0 default, deg added to all moves if a direction change occurs to account for slop/backlash in the system (This was a measured angle)
+const float BacklashAngleY = 0.5; //~0.5 default, deg added to all moves if a direction change occurs to account for slop/backlash in the system (This was a measured angle)
 //The backlash can be tricky to select. For general Gcode reading its easier to leave it set to zero. 
 //Dotted lines dont need more than 1 deg backlash control, but the X axis has more inherant backlash than the Y axis & can benefit from a couple degrees backlash control when drawing straight lines. 
 
-float Resolution = 1.25; //mm of minimum DIRECTLY ENGAGED movement resolution to consolidate smaller moves that would otherwise stall the motor into one movement of this length.
-float DotResolution = .40;//mm of minimum DOT drawing resolution length. Experimenting with slightly longer length to improve speed & repeatability<
-int LineSendRate = 1000; //1000-3000ms, the rate at which you send lines from Processing. Experimenting with automatically detecting this rate.
-int StepDelay = 30*(1.25/Resolution);//ms delay between steps to ensure steps are independent moves. is calculated based on desired resolution  
-int DotStepDelay = 40;//35-60 ms delay between steps to ensure steps are independent moves. It can go lower than 40 but quality suffers
-int DotThreshold  = (LineSendRate/1.50)*DotResolution/(3.0*DotStepDelay); //mm, lines shorter than this will be dots instead of direct lines. 
-//(The 3.0 is how many times that delay is called in the DotDrawLine command)This ensures that you dont runs out of time by the next command. The 1.50 is a safety factor
+const float Resolution = 1.00; //mm of minimum DIRECTLY ENGAGED movement resolution to consolidate smaller moves that would otherwise stall the motor into one movement of this length.
+const float DotResolution = .30;//mm of minimum DOT drawing resolution length. 
+//const int LineSendRate = 1000; //1000-3000ms, the rate at which you send lines from Processing. Experimenting with automatically detecting this rate.
+int StepDelay = 35*(1.25/Resolution);//ms delay between steps to ensure steps are independent moves. Calculated based on desired resolution  
+const int DotStepDelay = 50;//35-60 ms delay between steps to ensure steps are independent moves. It can go lower than 40 but quality suffers
+const int DotThreshold  = 50; //mm, lines shorter than this will be dots instead of direct lines.   //(LineSendRate/1.20)*DotResolution/(3.0*DotStepDelay);  Formerly a calcuattion
+					//(The 3.0 is how many times that delay is called in the DotDrawLine command)This ensures that you dont runs out of time by the next command. The 1.250 is a safety factor
 
-int LineDelay = 100; //200ms delay after line move to ensure move is completed
-int penDelay = 100; //250ms delay to ensure pen (Z-axis) moves are completed
+int LineDelay = 120; //brief delay after line move to ensure move is completed
+int penDelay = 120; //brief delay to ensure pen (Z-axis) moves are completed
 float oldDirX =0; //-1,0,1. Place holder to record the direction of the last motion in this axis to use for backlash correction.
 float newDirX =0; //-1,0,1. Place holder to record the direction of the last motion in this axis to use for backlash correction.
 float oldDirY =0; //-1,0,1. Place holder to record the direction of the last motion in this axis to use for backlash correction.
 float newDirY =0; //-1,0,1. Place holder to record the direction of the last motion in this axis to use for backlash correction.
 
 //  Define Robot limits, in degrees. Specific to Mug-O-Matic 
-float Xdmin = 28;  //Min X is left of Mug
-float Xdmax = Xdmin +139.5;  //Max X is right of mug
-float Ydmin = 0; //min Y is bottom of mug
-float Ydmax = 180.0;//Max Y is top of mug
-float ZdTouch = 20.0;// The exact angle that you begin to touch pen to mug.
-float Zdmin = ZdTouch -10; //5 The actual down position for dot drawing. (Added an additional deg to ensure contact on all spots on mug. Dont want too tight or loose enough to lose contact!)
-float Zdup = ZdTouch +5; // The up position for dot drawing.
-float Zdmax = 46.0; // Lifted Pen Position, not touching mug and pen clears Frame
+const float Xdmin = 31.0;  //Min X is left of Mug
+const float Xdmax = Xdmin +139.0;  //Max X is right of mug
+const float Ydmin = 0; //min Y is bottom of mug
+const float Ydmax = 179.5;//Max Y is top of mug (homed position)
+const float ZdTouch = 25.0;//20 The exact angle that you begin to touch pen to mug.
+const float Zdmin = ZdTouch -12.0; //5 The actual down position for dot drawing. (Added an additional deg to ensure contact on all spots on mug. Dont want too tight or loose enough to lose contact!)
+const float Zdup = ZdTouch +5.0; // The up position for dot drawing.
+const float Zdmax = 46.0; // Lifted Pen Position, not touching mug and pen clears Frame
 
 //  Calculated drawing robot limits, in mm
 float Xmin = deg2mmPivot(Xdmin);
@@ -110,9 +111,9 @@ float Ymin = deg2mmRack(Ydmin);
 float Ymax = deg2mmRack(Ydmax);
 float Zmin = deg2mmRack(Zdmin);
 float Zmax = deg2mmRack(Zdmax);
-float Xpos = Xdmin;   //Home Position (deg)
-float Ypos = Ydmin;  //Home Position (deg)
-float Zpos = Zdmax; //Home Position (deg)
+float Xdpos = Xdmin;   //Current X Position (deg)
+float Ydpos = Ydmin;  //Current Y  Position (deg)
+float Zdpos = Zdmax; //Current Z Position (deg)
 
 int LeftButtonState = LOW; // Default state of the left button
 float LeftAnalogXState = 0; //Logic variable for recording current state of this analog sensed data
@@ -120,16 +121,24 @@ float LeftAnalogYState = 0; //Logic variable for recording current state of this
 const int LeftButtonPin = 0; // Left Joystick Button, Analog Pin #
 const int LeftAnalogPinX = 4; // X axis Joystick analog pin#
 const int LeftAnalogPinY = 1; // Y axis Joystick analog pin#
-float X = Xpos;
-float Y = Ypos;
+float X = Xdpos;
+float Y = Ydpos;
 int counter1 = 0; // a simple counter to keep track of the toggle position command during manual control
 
+boolean verbose = false; //EXPERIMENTAL!! If 'true' then print positional feedback to arduino serial monitor. Is currently messing up communication
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
 //*SETUP*
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////{
 void setup() {
-  Serial.begin( 115200 ); //9600 baud needed to view the serial monitor but we need faster for GCODE intrepretation
+  Serial.begin( 115200 ); //9600 baud needed to view the serial monitor but we need 115200 for fast GCODE intrepretation
+  if(verbose){ //  Optional position feedback notifications
+    Serial.println("Robot Activated!");
+    Serial.print("Drawing Resolution is "); Serial.println(Resolution); 
+    Serial.print("X range is from ("); Serial.print(Xmin); Serial.print(" to "); Serial.print(Xmax); Serial.print(" mm) or ("); Serial.print(Xdmin); Serial.print(" to "); Serial.print(Xdmax); Serial.println(") deg."); 
+    Serial.print("Y range is from ("); Serial.print(Ymin); Serial.print(" to "); Serial.print(Ymax); Serial.print(" mm) or ("); Serial.print(Ydmin); Serial.print(" to "); Serial.print(Ydmax); Serial.println(") deg."); 
+    Serial.print("Z range is from ("); Serial.print(Zmin); Serial.print(" to "); Serial.print(Zmax); Serial.print(" mm) or ("); Serial.print(Zdmin); Serial.print(" to "); Serial.print(Zdmax); Serial.println(") deg."); 
+  }  
   pinMode(buzzerPin, OUTPUT);
   pinMode(ledPin, OUTPUT);
   Countdown();
@@ -141,23 +150,23 @@ void setup() {
   delay(500); 
   home();
 
-//  ManualControl();  //Will stay in this loop forever giving you MANUAL JOYSTICK CONTROL
-  //while(true){ AssemblyAid();} //Uncomment this during assembly to set pin 's9' to center & pin 's8' to sweep. Only do this with robot desperate from Mug. 
-  
  //***CALIBRATION & TEST COMMANDS*** 
- // drawRect(Xmin+30,Ymin+26,Xmin+56,Ymin+52,true); //(x0, y0, x1, y1, boolean pen toggle (dry run if set false)). Units are millimeters
-//   drawRect(Xmin,Ymin,Xmax,Ymax,true); //(x0, y0, x1, y1, boolean pen toggle (dry run if set false)). Units are millimeters
+
+// ManualControl();  //Will stay in this loop forever giving you MANUAL JOYSTICK CONTROL
+//AssemblyAid(); //Uncomment this during assembly to set pin 's9' to center & pin 's8' to sweep. Only do this with robot separate from Mug. 
+  
+//  drawRect(Xmin+30,Ymin+26,Xmin+56,Ymin+52,true); //(x0, y0, x1, y1, boolean pen toggle (dry run if set false)). Units are millimeters
+ //   drawRect(Xmin,Ymin,Xmax,Ymax,true); //(x0, y0, x1, y1, boolean pen toggle (dry run if set false)). Units are millimeters
  //  drawRect(Xmin+6,Ymin+6,Xmax-6,Ymax-6,true); //(x0, y0, x1, y1, boolean pen toggle (dry run if set false)). Units are millimeters
  //  drawRect(Xmin+12,Ymin+12,Xmax-12,Ymax-12,true); //(x0, y0, x1, y1, boolean pen toggle (dry run if set false)). Units are millimeters
  //  drawRect(Xmin+18,Ymin+18,Xmax-18,Ymax-18,true); //(x0, y0, x1, y1, boolean pen toggle (dry run if set false)). Units are millimeters
  //  drawRect(Xmin+24,Ymin+24,Xmax-24,Ymax-24,true); //(x0, y0, x1, y1, boolean pen toggle (dry run if set false)). Units are millimeters
  // drawDotRect(Xmin+33,Ymin+29,Xmin+53,Ymin+49,true); //(x0, y0, x1, y1, boolean pen toggle (dry run if set false)). Units are millimeters
-// drawRectSpiral(Xmin,Ymin,Xmax,Ymax,6, true); //(x0, y0, x1, y1, spiral spacing, boolean pen toggle (dry run if set false)). Units are millimeters
- //drawCircle(40, 40, 30); //X position of center, y position of center, radius. Units are millimeters
- //drawCircleSpiral(65, 40, 30, 3); //X position of center, y position of center, radius, spiral spacing. Units are millimeters
- //servoZ.write(Zdmax); delay(1000); servoZ.write(ZdTouch); //Useful for verifify that pen touches mug @ exactly ZdTouch
- //servoX.write(Xdmin);//A short
-// home(); detachAll();  delay(9999999999); //Home & Kill unit indefinitely 
+ //drawRectSpiral(Xmin,Ymin,Xmax,Ymax,6, true); //(x0, y0, x1, y1, spiral spacing, boolean pen toggle (dry run if set false)). Units are millimeters
+ //drawCircle((Xmax + Xmin)/2, (Ymax + Ymin)/2, 10); //X position of center, y position of center, circle radius. Units are millimeters
+ //drawCircleSpiral((Xmax + Xmin)/2, (Ymax + Ymin)/2, 40, 3); //X position of center, y position of center, radius, spiral spacing. Units are millimeters
+ //servoZ.write(Zdmax); delay(1000); servoZ.write(ZdTouch); //Useful for versify that pen touches mug @ exactly ZdTouch
+  //home(); detachAll();  delay(9999999999); //Home & Kill unit indefinitely 
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
@@ -190,8 +199,8 @@ void loop() {
         case '\r':                         
           if ( lineIndex > 0 && commandFound ) {         // Line or command is complete. Then execute!
             line[ lineIndex ] = '\0';                   // Terminate string
-            //Serial.print( "//Received "); Serial.println( line );//EXPERIMENTING WITH FEEDBACK TO PROCESSING
             processIncomingLine( line, lineIndex );
+			Serial.print( "//LineComplete");// THIS IS CRITICAL FEEDBACK SENT TO 'PROCESSING'
             lineIndex = 0;
             commandFound = false; // reset the command found flag to false
             lineIsComment = false;
@@ -233,18 +242,15 @@ void loop() {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
 //*Function Definitions*
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////{
- 
-//* void processIncomingLine( char* line, int charNB ) - Main loop
-//* char* line : Line to process
-//* int charNB : Number of characters
 
 void processIncomingLine( char* line, int charNB ) {
+  //line = Line to process
+  //charNB = Number of characters  
   int currentIndex = 0;
-  char buffer[ LINE_BUFFER_LENGTH ];                                 // Hope that LINE_BUFFER_LENGTH is long enough for max # of input parameters
+  char buffer[ LINE_BUFFER_LENGTH ]; // Hope that LINE_BUFFER_LENGTH is long enough for max # of input parameters
   struct point newPos;
   
-  newPos = actuatorPos; // Set new position to current servo position, individual values are reused if new ones not list in command 
-  
+  newPos = actuatorPos; // Set new position to current servo position, individual values are reused if new ones not list in command  
   while( currentIndex < charNB ) {
     switch ( line[ currentIndex++ ] ) {              // Select command, if any
       case 'G':
@@ -268,33 +274,29 @@ void processIncomingLine( char* line, int charNB ) {
             if ( indexZ != NULL ) { 
               newPos.z = atoi( indexZ + 1);
               if ( newPos.z < Zmax ){
-				  penDown();
-				  newPos.z = Zmin; Zpos = Zdmin;
+				  penDown(); newPos.z = Zmin; 
 			  }
 				  else{
-				  penUp(); newPos.z = Zmax; Zpos = Zdmax; 
+				  penUp(); newPos.z = Zmax; 
 				  }
 			}
 			
             if ( actuatorPos.x!=newPos.x || actuatorPos.y!=newPos.y ){
-				if(Zpos <= Zdmin){ 		//if(newPos.z == Zdmax){
+				if(Zdpos < Zdmax){ 		//if(newPos.z == Zdmax)  <= Zdmin
 					float distTotal = abs(lineDist(deg2mmPivot(newPos.x), deg2mmRack(newPos.y), deg2mmPivot(actuatorPos.x), deg2mmRack(actuatorPos.y)));//Total move distance
 					if( distTotal > DotThreshold ){
 						//drawDotLine(newPos.x, newPos.y );
 						drawLine(newPos.x, newPos.y );
-						newPos.z = Zmin;
+						//newPos.z = Zmin; Zdpos = Zdmin;
 					}else{
 						drawDotLine(newPos.x, newPos.y );
-						newPos.z = Zmin;
 					}
 				}
 				else{
 					drawLine(newPos.x, newPos.y );
-				}
-					
+				}		
 			}
             //Serial.println("ok"); // acknowledge as required by reprap standards to work with replicatorG
-			
 			actuatorPos = newPos; 
             break;
         }
@@ -317,16 +319,15 @@ void processIncomingLine( char* line, int charNB ) {
         }
     }
   }
-  }
-  
- void drawDotLine(float x2, float y2) { //Inputs are in mm, All Calcs within drawDotLine are in Deg!!
+}
+    
+void drawDotLine(float x2, float y2) { //Inputs are in mm, All Calcs within drawDotLine are in Deg!!
   //Note difference between positions: Original '0', Current 'pos', Ultimate Target 't', Immediate target '1'
- 
-  float x0 = Xpos; //current position in deg. 
-  float y0 = Ypos; //current position in deg
+  float x0 = Xdpos; //current position in deg. 
+  float y0 = Ydpos; //current position in deg
   
   //Convert & SHIFT/INVERT ORIGIN.
-  float xt = mm2degPivot(x2);//convert target position to DEG & offset by the unusuable initial X angle
+  float xt = mm2degPivot(x2);//convert target position to DEG
   float yt = Ydmax-mm2degRack(y2); //convert target position to DEG.
 
   //Record the direction of this move for X & Y to help us correct for lost motion if the servo changes direction.
@@ -334,55 +335,49 @@ void processIncomingLine( char* line, int charNB ) {
   oldDirY = newDirY; //Preserve the prior direction command
   newDirX = round((xt-x0)/abs((xt-x0+.00001))); //note the .0001 is to prevent divide by zero err. These variables are INT so it will round off. Can only be -1,0,1
   newDirY = round((yt-y0)/abs((yt-y0+.00001)));
-	if (newDirX != oldDirX && newDirX != 0){
-		xt = xt + BacklashAngleX*newDirX; //BacklashAngle = magnitude, newDir = direction
-	}
-	if (newDirY != oldDirY && newDirY != 0){
-		yt = yt + BacklashAngleY*newDirY; //BacklashAngle = magnitude, newDir = direction
-	}
+  if (newDirX != oldDirX && newDirX != 0){
+	  xt = xt + BacklashAngleX*newDirX; //BacklashAngle = magnitude, newDir = direction
+	  if(verbose){Serial.println(" ADJUSTING X BACKLASH ");}
+  }
+  if (newDirY != oldDirY && newDirY != 0){
+	  yt = yt + BacklashAngleY*newDirY; //BacklashAngle = magnitude, newDir = direction
+	  if(verbose){Serial.println(" ADJUSTING Y BACKLASH ");}
+  }
 	
     //  Bring instructions within limits, //If out of limit you have to adjust original position instructions too or error creeps in
-  if (xt > Xdmax) { xt = Xdmax;}// x2 = deg2mmPivot(Xdmax);}
-  if (xt < Xdmin) { xt = Xdmin;}// x2 = deg2mmPivot(Xdmin);}
-  if (yt > Ydmax) { yt = Ydmax;}//y2 = deg2mmRack(Ydmin);}
-  if (yt < Ydmin) { yt = Ydmin;}// y2 = deg2mmRack(Ydmax);} 
+  if (xt > Xdmax) { xt = Xdmax;}// x2 = deg2mmPivot(Xdmax);
+  if (xt < Xdmin) { xt = Xdmin;}// x2 = deg2mmPivot(Xdmin);
+  if (yt > Ydmax) { yt = Ydmax;}//y2 = deg2mmRack(Ydmin);
+  if (yt < Ydmin) { yt = Ydmin;}// y2 = deg2mmRack(Ydmax);}
 	
   float x1=x0; //x1,y1 is a moving intermediate position between the beginning and target position
   float y1=y0; 
   float distTotal = abs(lineDist(deg2mmPivot(x0), deg2mmRack(y0), deg2mmPivot(xt), deg2mmRack(yt)));//Total move distance
-//  float tol = .1; //allowable tolerance in deg for when to stop segmenting lines and just go to the end position 
-  int stepCount = round(ceil(distTotal/DotResolution));  if (stepCount < 1){stepCount = 1;}
-  //////CONSIDER REMOVING THE EQUAL TO CLAUS FROM i <= stepcount!!!!! Get a single dot for close range
-     //>>>IF i = 0 >>>go to t directly
-  		for (int i=0; i<stepCount; i++ ) //i = incremented stepcounter to find intermediate drawable points along the desired slope based on the DOT resolution
-		{ 
-			//if (((xt-tol) <= Xpos && Xpos <= (xt+tol)) && ((yt-tol) <= Ypos  && Ypos <= (yt+tol)) ){ //check if target position reached within tolerance
-			//	break;
-			//} 
-			x1 = x0 + i*(xt-x0)/stepCount; 
-			y1 = y0 + i*(yt-y0)/stepCount;
-			servoZ.write(Zdup); delay(DotStepDelay); Zpos=Zdup;  //Move UP JUST off the mug surface
-			servoX.write(x1); Xpos = x1; //record current position in deg
-			servoY.write(y1); Ypos = y1;//Ydmax-y1; //record current position in deg
-			delay(DotStepDelay);
-			servoZ.write(Zdmin); delay(DotStepDelay); Zpos=Zdmin;   //Move DOWN to draw a dot
-			   //Delay before next lines to ensure this line is completed
-		}
-	//Move to original target positions & update position record
-//	servoZ.write(Zdup); delay(DotStepDelay); Zpos=Zdup;  //Move UP JUST off the mug surface
-	servoX.write(xt); 	Xpos = xt; //Xpos = mm2degPivot(x2); //record current position in deg. We do NOT choose Xpos = xt because then erros start adding up!!
-	servoY.write(yt); 	Ypos = yt; //Ypos = Ydmax-mm2degRack(y2);; //record current position in deg  COULD ALSO Logically SET Ypos to Ypos = Ydmax-mm2degRack(y2); but makes a small smear in practice
-//	delay(DotStepDelay);
-	//servoZ.write(Zdmin); delay(DotStepDelay); Zpos=Zdmin;
-  // delay(10);    //Very brief uncontrolled Delay before next lines to ensure the last command is completed
- }
+  int stepCount = round(ceil(distTotal/DotResolution)); 
+  if (stepCount < 1){stepCount = 0;} //stepCount = 1;
+  
+  for (int i=0; i<stepCount; i++ ){ //i = incremented stepcounter to find intermediate drawable points along the desired slope based on the DOT resolution
+	x1 = x0 + i*(xt-x0)/stepCount; 
+	y1 = y0 + i*(yt-y0)/stepCount;
+	servoZ.write(Zdup); delay(DotStepDelay); Zdpos=Zdup;  //Move UP JUST off the mug surface
+	servoX.write(x1); Xdpos = x1; //record current position in deg
+	servoY.write(y1); Ydpos = y1;//Ydmax-y1; //record current position in deg
+	delay(DotStepDelay);
+	servoZ.write(Zdmin); delay(DotStepDelay); Zdpos=Zdmin;   //Move DOWN to draw a dot
+  }
+  //Move to original target positions & update position records (note the records intentionally do NOT include the backlash adjustment!
+  servoX.write(xt); 	 Xdpos = mm2degPivot(x2); //Xdpos = xt; record current position in deg. We do NOT choose Xdpos = xt because then erros start adding up!!
+  servoY.write(yt); 	Ydpos = Ydmax-mm2degRack(y2); //Ydpos = yt;  record current position in deg  COULD ALSO Logically SET Ydpos to Ydpos = Ydmax-mm2degRack(y2); but makes a small smear in practice
+  delay(DotStepDelay);
+  //servoZ.write(Zdmin); delay(DotStepDelay); Zdpos=Zdmin;
 
- 
+}
+   
 void drawLine(float x2, float y2) { //Inputs are in mm, All Calcs within drawLine are in Deg!!
   //Note difference between positions: Original '0', Current 'pos', Ultimate Target 't', Immediate target '1'
  
-  float x0 = Xpos; //current position in deg. 
-  float y0 = Ypos; //current position in deg
+  float x0 = Xdpos; //current position in deg. 
+  float y0 = Ydpos; //current position in deg
   
   //Convert & SHIFT/INVERT instructions. Y axis inverted in Gcode & X origin position Xmin is at some number >0 deg.)
   float xt = mm2degPivot(x2);//+Xdmin; //convert target position to DEG & offset by the unusuable initial X angle
@@ -395,16 +390,18 @@ void drawLine(float x2, float y2) { //Inputs are in mm, All Calcs within drawLin
   newDirY = round((yt-y0)/abs((yt-y0+.00001)));
 	if (newDirX != oldDirX && newDirX != 0){
 		xt = xt + BacklashAngleX*newDirX; //BacklashAngle = magnitude, newDir = direction
+		if(verbose){Serial.println(" ADJUSTING X BACKLASH ");}
 	}
 	if (newDirY != oldDirY && newDirY != 0){
 		yt = yt + BacklashAngleY*newDirY; //BacklashAngle = magnitude, newDir = direction
+		if(verbose){Serial.println(" ADJUSTING Y BACKLASH ");}
 	}
 	
 	    //  Bring instructions within limits
-  if (xt > Xdmax) { xt = Xdmax;}// x2 = deg2mmPivot(Xdmax);}
-  if (xt < Xdmin) { xt = Xdmin;}// x2 = deg2mmPivot(Xdmin);}
-  if (yt > Ydmax) { yt = Ydmax; }//y2 = deg2mmRack(Ydmin);}
-  if (yt < Ydmin) { yt = Ydmin;}// y2 = deg2mmRack(Ydmax);} 
+  if (xt > Xdmax) { xt = Xdmax;}// x2 = deg2mmPivot(Xdmax);
+  if (xt < Xdmin) { xt = Xdmin;}// x2 = deg2mmPivot(Xdmin);
+  if (yt > Ydmax) { yt = Ydmax; }//y2 = deg2mmRack(Ydmin);
+  if (yt < Ydmin) { yt = Ydmin;}// y2 = deg2mmRack(Ydmax);
  
   float x1=x0; //x1,y1 is a moving intermediate position between the beginning and target position
   float y1=y0; 
@@ -412,57 +409,54 @@ void drawLine(float x2, float y2) { //Inputs are in mm, All Calcs within drawLin
   int tol = 0.5; //allowable tolerance in deg for when to stop segmenting lines and just go to the end position 
   int stepCount = distTotal/Resolution;
 		for (int i=0; i<stepCount; i++ ){ //i = incremented stepcounter to find intermediate drawable points along the desired slope based on the resolution 
-			if (((xt-tol) <= Xpos && Xpos <= (xt+tol)) && ((yt-tol) <= Ypos  && Ypos <= (yt+tol)) ){ //check if target position reached within tolerance
+			if (((xt-tol) <= Xdpos && Xdpos <= (xt+tol)) && ((yt-tol) <= Ydpos  && Ydpos <= (yt+tol)) ){ //check if target position reached within tolerance
 				break;
 			} 
-			else if (stepCount <= 1){ //skip stepping if the move is already super small. 
+			else if (stepCount <= 1){ //skip stepping if the move is already less than resolution.
 				break;
 				}
 			x1 = x0 + i*(xt-x0)/stepCount; 
 			y1 = y0 + i*(yt-y0)/stepCount;
-			servoX.write(x1); Xpos = x1; //record current position in deg
-			servoY.write(y1); Ypos = y1; //record current position in deg
+			servoX.write(x1); Xdpos = x1; //record current position in deg
+			servoY.write(y1); Ydpos = y1; //record current position in deg
 			delay(StepDelay);    //Delay before next lines to ensure this line is completed
 		}
 	//Move to original target positions & update position record
-	servoX.write(xt); Xpos = xt; // Xpos = mm2degPivot(x2); //record current position in deg. We do NOT choose Xpos = xt because then erros start adding up!!
-	servoY.write(yt); Ypos = yt;//Ypos = Ydmax-mm2degRack(y2); //record current position in deg  COULD ALSO Logically SET Ypos to Ypos = Ydmax-mm2degRack(y2); but makes a small smear in practice
-    //delay(StepDelay);//delay(LineDelay);    //Delay before next lines to ensure this line is completed
+	servoX.write(xt);  Xdpos = mm2degPivot(x2); //Xdpos = xt; record current position in deg. We do NOT choose Xdpos = xt because then erros start adding up!!
+	servoY.write(yt);  Ydpos = Ydmax-mm2degRack(y2); //Ydpos = yt; record current position in deg  COULD ALSO Logically SET Ydpos to Ydpos = Ydmax-mm2degRack(y2); but makes a small smear in practice
+    delay(StepDelay);//delay(LineDelay);    //Delay before next lines to ensure this line is completed
 }
 
-//  Raises pen
-void penUp() {   //servoZ.attach( SERVOPINZ );
-  //servoZ.attach( SERVOPINZ ); //I had experimented with detaching this motor when not in use to conserve power...
-  servoZ.write(Zdmax); delay(penDelay); Zpos=Zdmax; 
-  //servoZ.detach( );
+void penUp() {   //  Raises pen
+  servoZ.write(Zdmax); delay(penDelay); Zdpos=Zdmax;
+  if(verbose){Serial.println("Pen Up!"); }  
 }
 
-//  Lowers pen
-void penDown() {
-  //servoZ.attach( SERVOPINZ ); //I had experimented with detaching this motor when not in use to conserve power...
-  servoZ.write(Zdmin); delay(penDelay); Zpos=Zdmin;  
- // servoZ.detach( );
+void penDown() {//  Lowers pen
+  servoZ.write(Zdmin); delay(penDelay); Zdpos=Zdmin;  
+  if(verbose){Serial.println("Pen Down"); }  
 }
 
-  //  Sends printer to home position without drawing on anything
-  void home(){
-    Zpos = Zdmax;	
+  void home(){  //  Sends printer to home position without drawing on anything
+
+    Zdpos = Zdmax;	
 	penUp();
-	Xpos = Xdmin; //record current position in deg
-	Ypos = Ydmin;//180-Ydmax; 
+	//Xdpos = Xdmin; //record current position in deg
+	//Ydpos = Ydmin;//180-Ydmax; 
     drawLine(Xmin,Ymax);
+	Xdpos = Xdmin; //record current position in deg
+	Ydpos = Ydmin;//180-Ydmax; 
 	delay(500);
   }
    
-  //Determine direct distance between two points in mm
-float lineDist(float x0, float y0, float x1, float y1) { 
+float lineDist(float x0, float y0, float x1, float y1) {   //Determine direct distance between two points in mm
+
   //float temp = pow(pow(x1-x0, 2) + pow(y1-y0, 2), 0.5);
   return ((int) pow(pow(x1-x0, 2) + pow(y1-y0, 2), 0.5));
   }
   
-  //  Draw a rectangular spiral using two points & a spiral spacing distance
-void drawRectSpiral(float x0, float y0, float x1, float y1, float dec, boolean toggle)
-  {
+void drawRectSpiral(float x0, float y0, float x1, float y1, float dec, boolean toggle){   //  Draw a rectangular spiral using two points & a spiral spacing distance
+
     for (int b=0; ((x1-x0)/2 > dec*b) && ((y1-y0)/2 > dec*b);b++){
     drawRect(x0+dec*b,y0+dec*b,x1-dec*b,y1-dec*b, true); 
     }
@@ -486,8 +480,7 @@ void drawRect(float x0, float y0, float x1, float y1, boolean toggle)  //inputs 
   }
  
    //  Draw a rectangle using two points
-void drawDotRect(float x0, float y0, float x1, float y1, boolean toggle)  //inputs are in mm
-  {
+void drawDotRect(float x0, float y0, float x1, float y1, boolean toggle){  //inputs are in mm
 //  home();
   penUp();
   drawLine(x0,y0);
@@ -504,16 +497,14 @@ void drawDotRect(float x0, float y0, float x1, float y1, boolean toggle)  //inpu
   }
   
    //  Draw a circle spiral! 
-void drawCircleSpiral(float x0, float y0, float rad, float dec) //X position of center, y position of center, radius, spiral spacing. Input units = mm
-  {
+void drawCircleSpiral(float x0, float y0, float rad, float dec){ //X position of center, y position of center, radius, spiral spacing. Input units = mm
+ 
   int i = 0;
   while (rad-dec*i > Resolution) { drawCircle(x0, y0, rad-dec*i); i++; }
   }
   
-
 //  Draw a circle!
-void drawCircle(float x0, float y0, float rad) //X position of center, y position of center, radius. Input units = mm
-  {
+void drawCircle(float x0, float y0, float rad){ //X position of center, y position of center, radius. Input units = mm
   //  Lift the pen, go to leftmost point on circle, set the pen down
   penUp(); 
   drawLine(x0-rad, y0); 
@@ -524,15 +515,15 @@ void drawCircle(float x0, float y0, float rad) //X position of center, y positio
   for (int i=0; i*Resolution < rad*2; i++ ){ 
     x1 = x0 + Resolution*i - rad;
     y1 = y0 + returnY(x1, x0, rad);
-    dist = lineDist(deg2mmPivot(Xpos), deg2mmRack(Ypos), x1, y1);  
+    dist = lineDist(deg2mmPivot(Xdpos), deg2mmRack(Ydpos), x1, y1);  
   
     while (dist < Resolution){
       i++;
       x1 = x0 + Resolution*i - rad;
       y1 = y0 + returnY(x1, x0, rad);
-      dist = lineDist(deg2mmPivot(Xpos), deg2mmRack(Ypos), x1, y1);
+      dist = lineDist(deg2mmPivot(Xdpos), deg2mmRack(Ydpos), x1, y1);
       }
-    drawLine(x1, y1); 
+    drawDotLine(x1, y1); 
     }
   
   //  Draw the top half of the circle!
@@ -540,19 +531,19 @@ void drawCircle(float x0, float y0, float rad) //X position of center, y positio
     { 
     x1 = x0 - Resolution*i + rad;
     y1 = y0 - returnY(x1, x0, rad);
-    dist = lineDist(deg2mmPivot(Xpos), deg2mmRack(Ypos), x1, y1);
+    dist = lineDist(deg2mmPivot(Xdpos), deg2mmRack(Ydpos), x1, y1);
     
 	while (dist < Resolution){
 		i++;
 		x1 = x0 - Resolution*i + rad;
 		y1 = y0 - returnY(x1, x0, rad);
-		dist = lineDist(deg2mmPivot(Xpos), deg2mmRack(Ypos), x1, y1);
+		dist = lineDist(deg2mmPivot(Xdpos), deg2mmRack(Ydpos), x1, y1);
     }
-	drawLine(x1, y1); 
+	drawDotLine(x1, y1); 
 	}
   
   //  Complete the circle, pen up!
-  drawLine(x0-rad, y0);
+  drawDotLine(x0-rad, y0);
   penUp();  
   
   }
@@ -562,8 +553,7 @@ float returnY(float x1, float x0, float rad){
   return ((int) ((pow( pow(rad, 2) - pow((x1-x0), 2) , 0.5))));
   }
   
-  //This pauses the robot for 5 seconds (5000 milliseconds) after it is turned on, per competition requirements. Then it beeps the 5 sec countdown. 
-void Countdown(){  
+void Countdown(){  //A beep/pause/beep function
   delay (595); 
   Buzz();
   delay (595); 
@@ -581,7 +571,6 @@ void Buzz() { //Increasing the duration of the buzz changes the volume drastical
    digitalWrite(ledPin, LOW);
  }
 
-
 void BuzzLong() {  //Increasing the duration of the buzz changes the volume drastically. Set delay to 80+ms for a loud beep!
   digitalWrite(buzzerPin, HIGH);
   digitalWrite(ledPin, HIGH);
@@ -595,13 +584,15 @@ void AssemblyAid() {
 	  servoSWEEP.attach( PIN_SERVO_SWEEP );
 	  servoCENTER.attach( PIN_SERVO_CENTER );  servoCENTER.write(179/2); //This servo pin is for assembly, it centers the servo
       servoCENTER.write(179/2); //Auto sweep on sweep pin only 
-	for (int pos = 0; pos <= 180; pos += 1) { // goes from 0 degrees to 180 degrees in 1 deg steps
-		servoSWEEP.write(pos);              // tell servo to go to position in variable 'pos'
-		delay(15);                       // waits for servo to reach the position
-	}
-	for (int pos = 180; pos >= 0; pos -= 1) { // goes from 180 degrees to 0 deg in 1 deg steps
-		servoSWEEP.write(pos);              // tell servo to go to position in variable 'pos'
-		delay(15);                       // waits for servo to reach the position
+	while(true){
+		for (int pos = 0; pos <= 180; pos += 1) { // goes from 0 degrees to 180 degrees in 1 deg steps
+			servoSWEEP.write(pos);              // tell servo to go to position in variable 'pos'
+			delay(15);                       // waits for servo to reach the position
+		}
+		for (int pos = 180; pos >= 0; pos -= 1) { // goes from 180 degrees to 0 deg in 1 deg steps
+			servoSWEEP.write(pos);              // tell servo to go to position in variable 'pos'
+			delay(15);                       // waits for servo to reach the position
+		}
 	}
 }
 
@@ -613,8 +604,9 @@ void detachAll() {
 	servoCENTER.detach( );
 }
 
- void ManualControl(){ //Review all input sensors for fresh data and set the robot state
-    float Speed = 1.000;
+ void ManualControl(){ //Full manual joystick control of robot
+    float Speed = 10.000;
+	StepDelay = 20;
 	penDelay = 750; //Since this is only used during manual control I put these speed modifiers here to slow it down. 
 	while(true){
 		int XinputRounded = analogRead(LeftAnalogPinX);
@@ -631,22 +623,32 @@ void detachAll() {
 		LeftButtonState = analogRead(LeftButtonPin); //is equal to 0 only if button pressed or disconnected
     
 		if (LeftButtonState == 0){
+			delay(10);
+			LeftButtonState = analogRead(LeftButtonPin); //The brief delay & secondary check filters out accidental triggers from noise which would happen surprisingly often otherwise.
+			if (LeftButtonState == 0){
 			if ( (counter1 & 0x01) == 0)
-				if (Zpos != Zdup){
-					servoZ.write(Zdup); delay(penDelay); Zpos=Zdup; 
+				if (Zdpos != Zdup){
+					servoZ.write(Zdup); delay(penDelay); Zdpos=Zdup; 
 			}else{
-				servoZ.write(Zdmin); delay(penDelay); Zpos=Zdmin; 
 				Buzz();
+				servoZ.write(Zdmin); delay(penDelay); Zdpos=ZdTouch; 
 			}
 				counter1++;
 				delay(5);
-		} 
-		X = deg2mmPivot(Xpos)+LeftAnalogYState*Speed*.03; //NOTE X & Y are switched! The Desired X direction matches the electronics hardwired Y configuration & vice versa 
-		Y = Ymax-deg2mmRack(Ypos)+LeftAnalogXState*Speed*.03; //Note2: To invert direction of control change + to -. 
+		} }
+		
+		X = deg2mmPivot(Xdpos)+LeftAnalogYState*Speed*.03; //NOTE X & Y are switched! The Desired X direction matches the electronics hardwired Y configuration & vice versa 
+		Y = Ymax-deg2mmRack(Ydpos)+LeftAnalogXState*Speed*.03; //Note2: To invert direction of control change + to -. 
+		
+		if (X > Xmax) { X = Xmax; }
+		if (X < Xmin) { X = Xmin; }
+		if (Y > Ymax) { Y = Ymax;}
+		if (Y < Ymin) { Y = Ymin;}
+ 	
 		drawLine(X,Y);
 	}
  }
-	   
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// } 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
 //*END OF PROGRAM
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
