@@ -47,45 +47,48 @@ Servo servoX;
 Servo servoY;
 Servo servoZ;
 
-char cmd[100];
+char cmd[10];
 int cmdIndex;
-float desiredAngleX = 179/2;
-float desiredAngleY = 179/2;
-float desiredAngleZ = 179/2;
+float desiredAngleX = 179/2; //initial position,
+float desiredAngleY = 179/2; //initial position,
+float desiredAngleZ = 50;    //initial position, 
 
-float Zdmin = 11.0; // 10. Dont want too tight or loose enough to lose contact!
-float Zdmax = 36.0; //  Lifted Pen Position
+const int buzzerPin = 11; 
+const int ledPin = 13;
 int counterL = 0;
 //int led = 1;
+char c = '\n';
+
+const float deg2mmRack(float deg) {return deg/2.25;} //  Converts mm to degrees for the servos.  2.25 is hard set by 180deg/80mm motion
+const float mm2degRack(float mm) {return mm*2.25;} //  Converts mm to degrees for the servos. 2.25 is hard set by 180deg/80mm motion
+const float deg2mmPivot(float deg) {return deg/1.5;} //  Converts mm to degrees for the servos. Is hard set by the dimensions of the mug 
+const float mm2degPivot(float mm) {return mm*1.5;} //(=2.25/1.8)  Converts mm to degrees for the servos. Is hard set by the dimensions of the mug
 
 
-void exeCmd() {
-  
-      if(cmd[0]=='y') {
-			desiredAngleY= Serial.parseInt(); 
-			servoY.write(desiredAngleY);  
-			//c='\n';
-		}
-		if(cmd[0]=='x') {
-			desiredAngleX= Serial.parseInt(); 
-			servoX.write(desiredAngleX);   
-			//c='\n';
-		}
-		
-		if(cmd[0]=='p') {
-			if ( (counterL & 0x01) == 0){
-					servoZ.write(Zdmin); 
-					//c='\n'	;				
-				}
-			else{
-					servoZ.write(Zdmax); 
-					//c='\n'	;				
-			}
-	    counterL++;
-		delay(5);
-		}
-       
-}
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
+//*DEFINE ROBOT SETTINGS
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////{
+//  Define Robot limits, in degrees. Specific to Mug-O-Matic 
+const float Xdmin = 31.0;  //Min X is left of Mug
+const float Xdmax = Xdmin +139.0;  //Max X is right of mug
+const float Ydmin = 0.1; //min Y is bottom of mug
+const float Ydmax = 179.5;//Max Y is top of mug (homed position)
+const float ZdTouch = 25.0;//20 The exact angle that you begin to touch pen to mug.
+const float Zdmin = ZdTouch -12.0; //5 The actual down position for dot drawing. (Added an additional deg to ensure contact on all spots on mug. Dont want too tight or loose enough to lose contact!)
+const float Zdup = ZdTouch +5.0; // The up position for dot drawing.
+const float Zdmax = 46.0; // Lifted Pen Position, not touching mug and pen clears Frame
+
+//  Calculated drawing robot limits, in mm
+float Xmin = deg2mmPivot(Xdmin);
+float Xmax = deg2mmPivot(Xdmax);
+float Ymin = deg2mmRack(Ydmin);
+float Ymax = deg2mmRack(Ydmax);
+float Zmin = deg2mmRack(Zdmin);
+float Zmax = deg2mmRack(Zdmax);
+float Xdpos = Xdmin;   //Current X Position (deg)
+float Ydpos = Ydmin;  //Current Y  Position (deg)
+float Zdpos = Zdmax; //Current Z Position (deg)
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
 //*SETUP*
@@ -97,14 +100,15 @@ void setup() {
   bluetooth.begin(9600); // Bluetooth default baud is 115200
   
  // myServo.attach(3);// 1000, 2000);
-  
-    delay(500); // wait for bluetooth module to start
-
+  pinMode(buzzerPin, OUTPUT);
+  pinMode(ledPin, OUTPUT);
+  Countdown(); // beep while waiting for bluetooth module to start
+  home();
   servoX.attach( PIN_SERVO_X );  
   servoY.attach( PIN_SERVO_Y );   
   servoZ.attach( PIN_SERVO_Z );   
-  
-//    Serial.setTimeout(8000);      //Stops attempting to talk to computer is no response after 50 milisenconds. Ensures the the arduino does not read serial for too long
+  home();
+  Serial.setTimeout(50);      //Stops attempting to talk to computer is no response after 50 milisenconds. Ensures the the arduino does not read serial for too long
 
   cmdIndex = 0;
   
@@ -115,6 +119,7 @@ void setup() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
 //* Main loop*
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////{
+
 void loop() {
   
     //bluetooth.write('led 1\n');                  //send completion of the command "d" stands for "done executing"
@@ -122,25 +127,90 @@ void loop() {
   if (Serial.available() ){                  // If data is coming through the USB port to the arduino then...
     
     char c = (char)bluetooth.read();
-     
     if(c=='\n') {
-      cmd[cmdIndex] = 0;
 	  exeCmd();  // execute the command
+	  cmd[cmdIndex] = 0;
       cmdIndex = 0; // reset the cmdIndex
 	  Serial.flush();                     //clear all other commands piled in the buffer
 	  //Serial.print('led 1');
     } else {      
       cmd[cmdIndex] = c;
-      if(cmdIndex<99) cmdIndex++;
-	  
+      if(cmdIndex<10){cmdIndex++;}
+	  }
+	 // delay(1);  
 	}
-	 delay(1);
-
-	// }
-  
-}
 }
   
-  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
+//*Function Definitions*
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  
+void Countdown(){  //A beep/pause/beep function
+  delay (295); 
+  Buzz();
+  delay (295); 
+  Buzz();
+  delay (295); 
+  BuzzLong();
+  delay (250); 
+}
 
+void Buzz() { //Increasing the duration of the buzz changes the volume drastically. Set delay to 80+ms for a loud beep!
+   digitalWrite(buzzerPin, HIGH);
+   digitalWrite(ledPin, HIGH);
+   delay(8);
+   digitalWrite(buzzerPin, LOW);
+   digitalWrite(ledPin, LOW);
+ }
+
+void BuzzLong() {  //Increasing the duration of the buzz changes the volume drastically. Set delay to 80+ms for a loud beep!
+  digitalWrite(buzzerPin, HIGH);
+  digitalWrite(ledPin, HIGH);
+  delay(50);
+  digitalWrite(buzzerPin, LOW);
+  digitalWrite(ledPin, LOW);
+}
+  void home(){  //  Sends printer to home position without drawing on anything
+	servoZ.write(Zdup);  
+	delay(300);
+	servoX.write(179/2);  
+	servoY.write(179/2);  
+  }
+
+ void exeCmd() {
+	switch (cmd[0]) {
+		case 'y': 
+			desiredAngleY= Serial.parseInt(); 
+			if (desiredAngleY > Ydmax) { c='\n'; break;} //  Bring instructions within limits,
+			if (desiredAngleY < Ydmin) { c='\n'; break;}
+			servoY.write(desiredAngleY);  
+			c='\n';
+			break;
+		case 'x': 		
+			desiredAngleX= Serial.parseInt(); 
+			if (desiredAngleX > Xdmax) { c='\n'; break;}
+			if (desiredAngleX < Xdmin) { c='\n'; break;;}
+			servoX.write(desiredAngleX);   
+			c='\n';
+			break;
+	 case 'p': 
+		if ( (counterL & 0x01) == 0){
+			servoZ.write(Zdmin); 
+			Buzz();			
+			c='\n'	;
+		}
+		else{
+			servoZ.write(Zdup);
+			c='\n'	;
+			}
+		counterL++;
+		delay(5);
+		break;
+		
+	case'b': 
+		BuzzLong();
+		c='\n';
+		break;	
+	} 
+ }
 
