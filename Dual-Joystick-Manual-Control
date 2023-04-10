@@ -78,7 +78,7 @@ float newDirX =0; //-1,0,1. Place holder to record the direction of the last mot
 float oldDirY =0; //-1,0,1. Place holder to record the direction of the last motion in this axis to use for backlash correction.
 float newDirY =0; //-1,0,1. Place holder to record the direction of the last motion in this axis to use for backlash correction.
 
-/*
+
 //Specific to Mug-O-Matic with Dual JoyStick Control
 //  Define Robot limits, in degrees
 float Xdmin = 28;  //30;  //Min X is left of Mug
@@ -89,25 +89,26 @@ float ZdTouch = 20.0;// 13 for MG90 // The exact angle that you begin to touch p
 float Zdmin = ZdTouch -5; // The down position for dt drawing. (Added an additional deg to ensure contact on all spots on mug. Dont want too tight or loose enough to lose contact!)
 float Zdup = ZdTouch +12; // The up position for dot drawing.
 float Zdmax = 46.0; //36  Lifted Pen Position, not touching mug and pen clears Frame
- */
+ 
  
 //Specific to Jointed Arm
 //  Define Robot limits, in degrees
+/*
 float Xdmin = 0;  //43 if choked up
 float Xdmax = 180;//148+13; //137 if choked up
 float Ydmin = 0;//2;//8-6  
 float Ydmax = 180.0;//-2;  
 float Zdmin = 0; // 
-float Zdmax = 180.0; //  
+float Zdmax = 180.0; //   */
 float Jdmin = 0; // 
 float Jdmax = 180.0; //  
 float Cdmin = 126;//180; //  Claw CLOSED Position
 float Cdmax = 60;// 179/2; //  Claw OPEN Position
  
-float Jdmin = 0; // 
-float Jdmax = 180.0; //  
-float Cdmin = 126;//180; //  Claw CLOSED Position
-float Cdmax = 60;// 179/2; //  Claw OPEN Position
+//float Jdmin = 0; // 
+//float Jdmax = 180.0; //  
+//float Cdmin = 126;//180; //  Claw CLOSED Position
+//float Cdmax = 60;// 179/2; //  Claw OPEN Position
 
 //  Calculated drawing robot limits, in mm
 float Xmin = deg2mmPivot(Xdmin);
@@ -173,10 +174,10 @@ void setup() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////{
 void loop() 
   {
-	CheckSensors();
-	drawLine(X,Y); 
-	drawLine2(Z,J); 
-	//delay(50); Slow it down
+  CheckSensors();
+  drawLine(X,Y); 
+  drawLine2(Z,J); 
+  //delay(50); Slow it down
   }
   
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
@@ -190,17 +191,17 @@ void CheckSensors(){ //Review all input sensors for fresh data and set the robot
   LeftButtonState = analogRead(LeftButtonPin); //is equal to 0 only if button pressed or disconnected
   
   if (LeftButtonState == 0){
-	  if ( (counterL & 0x01) == 0)
-	 	   if (Zpos != Zdup){
-		     servoZ.write(Zdup); delay(penDelay); Zpos=Zdup; 
-		     clawOpen();
-	   }else{
-		    clawClosed(); 
-			servoZ.write(Zdmin); delay(penDelay); Zpos=Zdmin; 
-			Buzz();
-	   }
-	    counterL++;
-		delay(5);
+    if ( (counterL & 0x01) == 0)
+       if (Zpos != Zdup){
+         servoZ.write(Zdup); delay(penDelay); Zpos=Zdup; 
+         clawOpen();
+     }else{
+        clawClosed(); 
+      servoZ.write(Zdmin); delay(penDelay); Zpos=Zdmin; 
+      Buzz();
+     }
+      counterL++;
+    delay(5);
   } 
 
    X = deg2mmPivot(Xpos)+LeftAnalogYState*.25*.5*SpeedL; //NOTE CHange + to - to change direction
@@ -208,7 +209,7 @@ void CheckSensors(){ //Review all input sensors for fresh data and set the robot
    Z = deg2mmRack(Zpos)-1.8*RightAnalogYState*1; //NOTE INVERTED! CHange + to - to change direction
    J = deg2mmPivot(Jpos)-RightAnalogXState*1;   
   }
-	   
+     
 
 void drawLine(float x2, float y2) { //Inputs are in mm, All Calcs within drawLine are in Deg!!
   //Note difference between positions: Original '0', Current 'pos', Ultimate Target 't', Immediate target '1'
@@ -224,13 +225,13 @@ void drawLine(float x2, float y2) { //Inputs are in mm, All Calcs within drawLin
   if (xt <= Xdmin) { xt = Xdmin; }
   if (yt >= Ydmax) { yt = Ydmax; }
   if (yt <= Ydmin) { yt = Ydmin; }
-	
+  
     if(verbose){
     //Serial.print("Going to ("); Serial.print(deg2mmPivot(xt)); Serial.print(", "); Serial.print(deg2mmRack(yt)); Serial.print(", "); //Serial.print(deg2mm(zt));
     //Serial.print(" mm) OR ("); 
    // Serial.print(xt); Serial.print(", "); Serial.print(yt); Serial.println(", deg )");// Serial.print(", "); //Serial.print(zt);
-	}
-	
+  }
+  
   float x1=x0;
   float y1=y0;
 //  float slope = (deg2mm(yt)-deg2mm(y0))/(deg2mm(xt)-deg2mm(x0)+.0001); //calc in MM!, resultant slope is unitless
@@ -238,31 +239,31 @@ void drawLine(float x2, float y2) { //Inputs are in mm, All Calcs within drawLin
   int tol = 5; //position error tolerance in deg
   int stepCount = distTotal/Resolution;
 
-	   
-	if (distTotal > 3*Resolution){  
-		for (int i=0; i<stepCount; i++ ) //i = incremented stepcounter to find intermediate drawable points along the desired slope based on the resolution
-		{ 
-			if (((xt-tol) <= Xpos && Xpos <= (xt+tol)) && ((yt-tol) <= Ypos  && Ypos <= (yt+tol)) ){ //check if target position reached within tolerance
-				break;
-			} else if (stepCount <= 1){ //skip stepping if the move is already super small. 
-				break;}
-			
-			x1 = x0 + i*(xt-x0)/stepCount; 
-			y1 = y0 + i*(yt-y0)/stepCount;
-			
-			servoX.write(x1);
-			servoY.write(y1);
-			Xpos = x1; //record current position in deg
-			Ypos = y1; //record current position in deg
-			delay(StepDelay);    //Delay before next lines to ensure this line is completed
-		}
-	}
+     
+  if (distTotal > 3*Resolution){  
+    for (int i=0; i<stepCount; i++ ) //i = incremented stepcounter to find intermediate drawable points along the desired slope based on the resolution
+    { 
+      if (((xt-tol) <= Xpos && Xpos <= (xt+tol)) && ((yt-tol) <= Ypos  && Ypos <= (yt+tol)) ){ //check if target position reached within tolerance
+        break;
+      } else if (stepCount <= 1){ //skip stepping if the move is already super small. 
+        break;}
+      
+      x1 = x0 + i*(xt-x0)/stepCount; 
+      y1 = y0 + i*(yt-y0)/stepCount;
+      
+      servoX.write(x1);
+      servoY.write(y1);
+      Xpos = x1; //record current position in deg
+      Ypos = y1; //record current position in deg
+      delay(StepDelay);    //Delay before next lines to ensure this line is completed
+    }
+  }
   
-	//Move to original target positions & update position record
-	servoX.write(xt);
+  //Move to original target positions & update position record
+  servoX.write(xt);
     servoY.write(yt);
-	Xpos = xt; //record current position in deg
-	Ypos = yt; //record current position in deg
+  Xpos = xt; //record current position in deg
+  Ypos = yt; //record current position in deg
     delay(LineDelay);    //Delay before next lines to ensure this line is completed
 }
 
@@ -285,38 +286,38 @@ void drawLine2(float z2, float j2) { //Inputs are in mm, All Calcs within drawLi
    // Serial.print("Going to ("); Serial.print(deg2mmPivot(xt)); Serial.print(", "); Serial.print(deg2mmRack(yt)); Serial.print(", "); //Serial.print(deg2mm(zt));
    // Serial.print(" mm) OR ("); 
    // Serial.print(xt); Serial.print(", "); Serial.print(yt); Serial.println(", deg )");// Serial.print(", "); //Serial.print(zt);
-	}
+  }
   float z1=z0;
   float j1=j0;
   float distTotal = abs(lineDist(deg2mmPivot(z0), deg2mmRack(j0), deg2mmPivot(zt), deg2mmRack(jt)));//Total move distance
   int tol = .5; //position error tolerance in deg
   int stepCount = distTotal/Resolution;
 
-	   
-	if (distTotal > 3*Resolution){  
-		for (int i=0; i<stepCount; i++ ) //i = incremented stepcounter to find intermediate drawable points along the desired slope based on the resolution
-		{ 
-			if (((zt-tol) <= Zpos && Zpos <= (zt+tol)) && ((jt-tol) <= Jpos  && Jpos <= (jt+tol)) ){ //check if target position reached within tolerance
-				break;
-			} else if (stepCount <= 1){ //skip stepping if the move is already super small. 
-				break;}
-			
-			z1 = z0 + i*(zt-z0)/stepCount; 
-			j1 = j0 + i*(jt-j0)/stepCount;
-			
-			servoZ.write(z1);
-			servoJ.write(j1);
-			Zpos = z1; //record current position in deg
-			Jpos = j1; //record current position in deg
-			delay(StepDelay);    //Delay before next lines to ensure this line is completed
-		}
-	}
+     
+  if (distTotal > 3*Resolution){  
+    for (int i=0; i<stepCount; i++ ) //i = incremented stepcounter to find intermediate drawable points along the desired slope based on the resolution
+    { 
+      if (((zt-tol) <= Zpos && Zpos <= (zt+tol)) && ((jt-tol) <= Jpos  && Jpos <= (jt+tol)) ){ //check if target position reached within tolerance
+        break;
+      } else if (stepCount <= 1){ //skip stepping if the move is already super small. 
+        break;}
+      
+      z1 = z0 + i*(zt-z0)/stepCount; 
+      j1 = j0 + i*(jt-j0)/stepCount;
+      
+      servoZ.write(z1);
+      servoJ.write(j1);
+      Zpos = z1; //record current position in deg
+      Jpos = j1; //record current position in deg
+      delay(StepDelay);    //Delay before next lines to ensure this line is completed
+    }
+  }
   
-	//Move to original target positions & update position record
-	servoZ.write(zt);
+  //Move to original target positions & update position record
+  servoZ.write(zt);
     servoJ.write(jt);
-	Zpos = zt; //record current position in deg
-	Jpos = jt; //record current position in deg
+  Zpos = zt; //record current position in deg
+  Jpos = jt; //record current position in deg
     delay(LineDelay);    //Delay before next lines to ensure this line is completed
 }
    
@@ -338,13 +339,13 @@ void clawClosed() {//  Closes Claw
 
   void home(){  //  Sends printer to home position 
    // penUp();
-	servoCENTER.write(179/2);
-	servoX.write(179/2);
-	servoY.write(179/2);
-	servoZ.write(179/2);
-	servoCLAW.write(179/2);
+  servoCENTER.write(179/2);
+  servoX.write(179/2);
+  servoY.write(179/2);
+  servoZ.write(179/2);
+  servoCLAW.write(179/2);
     //drawLine(Xdmin,Ydmin);
-	delay(1000);
+  delay(1000);
   }
 
 //Equation for a circle, Returns Y component given radius & x component
@@ -390,4 +391,3 @@ void BuzzLong() {  //Increasing the duration of the buzz changes the volume dras
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////}
 //*END OF PROGRAM
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
